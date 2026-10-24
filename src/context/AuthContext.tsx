@@ -3,7 +3,23 @@ import type { Session } from "@supabase/supabase-js";
 import { useNavigate } from 'react-router-dom';
 import type { LoginRequest } from "@/types/auth.types";
 import { useAuthStore } from "@/store/useAuthStore";
-import { supabase } from "@/lib/client";
+import { isDemoMode, supabase } from "@/lib/client";
+
+const DEMO_SESSION_KEY = "hu-demo-session";
+
+// Sesión mínima para el modo demostración (sin Supabase configurado).
+function demoSession(email: string): Session {
+    return { user: { email, user_metadata: {} } } as unknown as Session;
+}
+
+function readDemoSession(): Session | null {
+    try {
+        const email = sessionStorage.getItem(DEMO_SESSION_KEY);
+        return email ? demoSession(email) : null;
+    } catch {
+        return null;
+    }
+}
 
 
 export interface AuthContextProps {
@@ -49,6 +65,14 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
         setIsLoading(true);
 
+        if (isDemoMode) {
+            const session = readDemoSession();
+            setSession(session);
+            setIsLoggedIn(!!session);
+            setIsLoading(false);
+            return;
+        }
+
         // Carga inicial de sesión
         supabase.auth.getSession()
             .then(({ data }: { data: { session: Session | null } }) => {
@@ -83,6 +107,19 @@ export function AuthProvider({ children }: PropsWithChildren) {
         setError(null)
 
         try {
+            if (isDemoMode) {
+                await new Promise((resolve) => setTimeout(resolve, 600))
+                try {
+                    sessionStorage.setItem(DEMO_SESSION_KEY, credentials.email)
+                } catch {
+                    // sin almacenamiento: la sesión de demostración dura hasta recargar
+                }
+                setSession(demoSession(credentials.email))
+                setIsLoggedIn(true)
+                navigate('/dashboard')
+                return
+            }
+
             const { error } = await supabase.auth.signInWithPassword(credentials)
             if (error) throw error
 
@@ -104,6 +141,18 @@ export function AuthProvider({ children }: PropsWithChildren) {
         try {
             setIsLoading(true);
             setError(null);
+
+            if (isDemoMode) {
+                try {
+                    sessionStorage.removeItem(DEMO_SESSION_KEY);
+                } catch {
+                    // nada que limpiar
+                }
+                setIsLoggedIn(false);
+                setSession(null);
+                navigate('/login');
+                return;
+            }
 
             const { error } = await supabase.auth.signOut();
 
