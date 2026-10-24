@@ -1,4 +1,5 @@
 import * as React from "react"
+import { Search } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
@@ -8,9 +9,10 @@ function Input({ className, type, ...props }: React.ComponentProps<"input">) {
       type={type}
       data-slot="input"
       className={cn(
-        "file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input flex h-9 w-full min-w-0 rounded-md border bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
-        "focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
-        "aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
+        "placeholder:text-subtle-foreground selection:bg-primary-100 flex h-10 w-full min-w-0 rounded-md border border-input bg-card px-3 text-sm text-foreground transition-colors outline-none",
+        "focus-visible:border-primary focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-primary/30",
+        "disabled:cursor-not-allowed disabled:bg-muted disabled:text-subtle-foreground",
+        "aria-invalid:border-danger aria-invalid:outline-danger/30",
         className
       )}
       {...props}
@@ -18,4 +20,14 @@ function Input({ className, type, ...props }: React.ComponentProps<"input">) {
   )
 }
 
-export { Input }
+// Campo de búsqueda con lupa, usado en la barra superior y en los filtros de las tablas.
+function SearchInput({ className, ...props }: Omit<React.ComponentProps<"input">, "type">) {
+  return (
+    <div className={cn("relative", className)}>
+      <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-subtle-foreground" />
+      <Input type="search" className="pl-9" {...props} />
+    </div>
+  )
+}
+
+export { Input, SearchInput }
