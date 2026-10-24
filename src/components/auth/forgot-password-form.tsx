@@ -1,18 +1,15 @@
-import { cn } from '@/lib/utils'
+import { useState } from 'react'
+import { Link } from 'react-router-dom'
+import { LoaderCircle } from 'lucide-react'
+
+import { AuthShell } from '@/components/auth/AuthShell'
+import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useState } from 'react'
-import { supabase } from '@/lib/client'
+import { isDemoMode, supabase } from '@/lib/client'
 
-export function ForgotPasswordForm({ className, ...props }: React.ComponentPropsWithoutRef<'div'>) {
+export function ForgotPasswordForm() {
   const [email, setEmail] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
@@ -24,73 +21,54 @@ export function ForgotPasswordForm({ className, ...props }: React.ComponentProps
     setError(null)
 
     try {
-      // The url which will be included in the email. This URL needs to be configured in your redirect URLs in the Supabase dashboard at https://supabase.com/dashboard/project/_/auth/url-configuration
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: 'http://localhost:3000/update-password',
-      })
-      if (error) throw error
+      if (!isDemoMode) {
+        // La URL debe estar permitida en Supabase > Auth > URL Configuration
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/update-password`,
+        })
+        if (error) throw error
+      }
       setSuccess(true)
     } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : 'An error occurred')
+      setError(error instanceof Error ? error.message : 'Ocurrió un error')
     } finally {
       setIsLoading(false)
     }
   }
 
   return (
-    <div className='justify-center grid grid-cols-1 md:grid-cols-4 items-center  '>
-
-      <div className={cn('flex flex-col gap-6 col-span-1 md:col-span-2 md:col-start-2', className)} {...props}>
-        {success ? (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-2xl">Revisa tu correo electrónico</CardTitle>
-              <CardDescription>Instrucciones para restablecer la contraseña enviadas</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                Si te registraste usando tu correo electrónico y contraseña, recibirás un correo electrónico para restablecer la contraseña.
-              </p>
-            </CardContent>
-          </Card>
-        ) : (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-2xl">Restablecer tu contraseña</CardTitle>
-              <CardDescription>
-                Ingresa tu correo electrónico y te enviaremos un enlace para restablecer tu contraseña
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleForgotPassword}>
-                <div className="flex flex-col gap-6">
-                  <div className="grid gap-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="m@example.com"
-                      required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                    />
-                  </div>
-                  {error && <p className="text-sm text-red-500">{error}</p>}
-                  <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? 'Sending...' : 'Send reset email'}
-                  </Button>
-                </div>
-                <div className="mt-4 text-center text-sm">
-                  Ya tienes una cuenta?{' '}
-                  <a href="/login" className="underline underline-offset-4">
-                    Iniciar sesión
-                  </a>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-        )}
-      </div>
-    </div>
+    <AuthShell>
+      <h1 className="text-2xl leading-8 font-semibold">Recuperar contraseña</h1>
+      {success ? (
+        <Alert className="mt-5" title="Revisa tu correo">
+          Si el correo está registrado, recibirás un enlace para restablecer la contraseña.
+        </Alert>
+      ) : (
+        <>
+          <p className="mt-1 text-sm text-muted-foreground">Escribe el correo de tu cuenta y te enviaremos un enlace.</p>
+          <form onSubmit={handleForgotPassword} className="mt-6 flex flex-col gap-5">
+            <div className="grid gap-2">
+              <Label htmlFor="email">Correo electrónico</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="admin@hospital.edu"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
+            {error && <Alert tone="danger">{error}</Alert>}
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading && <LoaderCircle className="animate-spin" />}
+              {isLoading ? 'Enviando…' : 'Enviar enlace'}
+            </Button>
+          </form>
+        </>
+      )}
+      <Link to="/login" className="mt-5 block text-center text-sm text-primary hover:underline">
+        Volver a iniciar sesión
+      </Link>
+    </AuthShell>
   )
 }
