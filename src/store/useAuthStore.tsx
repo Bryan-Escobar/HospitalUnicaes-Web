@@ -1,20 +1,6 @@
 import type { Session } from '@supabase/supabase-js';
 import { create } from 'zustand';
-
-// Unified interface for the user
-export interface User {
-    id?: string;
-    id_usuario?: number;
-    email: string;
-    fullName?: string;
-    nombre?: string;
-    isActive?: boolean;
-    rol?: string;
-    user_metadata?: {
-        avatar_url?: string;
-        full_name?: string;
-    };
-}
+import type { EstadoAcceso } from '@/types/auth.types';
 
 
 export interface AuthState {
@@ -26,6 +12,14 @@ export interface AuthState {
     setIsLoading: (isLoading: boolean) => void;
     error: string | null;
     setError: (error: string | null) => void;
+    // Resultado de GET /auth/me para la sesión actual (rol y cuenta activa)
+    acceso: EstadoAcceso | null;
+    setAcceso: (acceso: EstadoAcceso | null) => void;
+    // La sesión terminó sin que el usuario cerrara sesión (no se pudo renovar el token)
+    sesionExpirada: boolean;
+    setSesionExpirada: (sesionExpirada: boolean) => void;
+    // Deja el estado como si nunca se hubiera iniciado sesión
+    reset: () => void;
 }
 
 // Creation of a Zustand store to manage authentication state
@@ -38,4 +32,9 @@ export const useAuthStore = create<AuthState>((set) => ({
     setIsLoading: (isLoading) => set({ isLoading }),
     error: null,
     setError: (error) => set({ error }),
+    acceso: null,
+    setAcceso: (acceso) => set({ acceso }),
+    sesionExpirada: false,
+    setSesionExpirada: (sesionExpirada) => set({ sesionExpirada }),
+    reset: () => set({ session: null, isLoggedIn: false, error: null, acceso: null }),
 }));

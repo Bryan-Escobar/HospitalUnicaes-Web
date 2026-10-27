@@ -34,9 +34,11 @@ function DemoStatePicker() {
 
 export function Topbar() {
     const navigate = useNavigate();
-    const { session } = useContext(AuthContext);
+    const { acceso } = useContext(AuthContext);
     const [q, setQ] = useState('');
-    const nombre = (session?.user?.user_metadata?.full_name as string | undefined) ?? perfilActual.nombre;
+    // Nombre del perfil de la sesión (GET /auth/me); el cargo aún viene de los datos de ejemplo
+    const perfil = acceso?.estado === 'permitido' ? acceso.perfil : null;
+    const nombre = perfil ? `${perfil.nombres} ${perfil.apellidos}`.trim() : perfilActual.nombre;
 
     return (
         <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center gap-4 border-b border-border bg-card px-7">
