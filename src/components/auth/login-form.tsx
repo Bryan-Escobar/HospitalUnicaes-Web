@@ -1,5 +1,5 @@
 import { useContext, useState } from 'react'
-import { Link, Navigate } from 'react-router-dom'
+import { Link, Navigate, useLocation, type Location } from 'react-router-dom'
 import { Eye, EyeOff, LoaderCircle } from 'lucide-react'
 
 import { AuthShell } from '@/components/auth/AuthShell'
@@ -17,11 +17,14 @@ export function LoginForm() {
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
 
-  const { logIn, error, clearError, session } = useContext(AuthContext)
+  const { logIn, error, clearError, session, sesionExpirada } = useContext(AuthContext)
+  const location = useLocation()
 
-  // Si ya hay una sesión activa, redirigir al dashboard
+  // Con sesión activa vuelve a la página privada que pidió (o al dashboard); ahí se verifica el rol
   if (session) {
-    return <Navigate to="/dashboard" replace />
+    const from = (location.state as { from?: Location } | null)?.from
+    const destino = from && from.pathname !== '/login' ? from.pathname + from.search + from.hash : '/dashboard'
+    return <Navigate to={destino} replace />
   }
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -47,6 +50,12 @@ export function LoginForm() {
       {isDemoMode && (
         <Alert className="mt-5" title="Modo demostración">
           Supabase no está configurado: cualquier correo y contraseña abren el panel con datos de ejemplo.
+        </Alert>
+      )}
+
+      {sesionExpirada && !error && (
+        <Alert className="mt-5" tone="warning" title="Tu sesión terminó">
+          Vuelve a iniciar sesión para continuar.
         </Alert>
       )}
 

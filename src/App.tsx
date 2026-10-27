@@ -1,7 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 
 import { LoginForm } from './components/auth/login-form'
-import { SignUpForm } from './components/auth/sign-up-form'
 import { ForgotPasswordForm } from './components/auth/forgot-password-form'
 import { UpdatePasswordForm } from './components/auth/update-password-form'
 import { AuthProvider } from './context/AuthContext'
@@ -27,7 +26,6 @@ function App() {
     <AuthProvider>
       <Routes>
         <Route path="/login" element={<LoginForm />} />
-        <Route path="/sign-up" element={<SignUpForm />} />
         <Route path="/forgot-password" element={<ForgotPasswordForm />} />
         <Route path="/update-password" element={<UpdatePasswordForm />} />
 
