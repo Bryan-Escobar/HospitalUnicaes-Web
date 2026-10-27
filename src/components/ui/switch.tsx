@@ -1,34 +1,24 @@
+import * as React from "react"
+import * as SwitchPrimitive from "@radix-ui/react-switch"
+
 import { cn } from "@/lib/utils"
 
-function Switch({
-  checked,
-  onCheckedChange,
-  className,
-  ...props
-}: Omit<React.ComponentProps<"button">, "onChange"> & {
-  checked: boolean
-  onCheckedChange: (checked: boolean) => void
-}) {
+function Switch({ className, ...props }: React.ComponentProps<typeof SwitchPrimitive.Root>) {
   return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      onClick={() => onCheckedChange(!checked)}
+    <SwitchPrimitive.Root
+      data-slot="switch"
       className={cn(
         "relative inline-flex h-6 w-10 shrink-0 items-center rounded-full border-2 border-transparent transition-colors",
-        checked ? "bg-primary" : "bg-border-strong",
+        "data-[state=checked]:bg-primary data-[state=unchecked]:bg-border-strong disabled:cursor-not-allowed disabled:opacity-50",
         className
       )}
       {...props}
     >
-      <span
-        className={cn(
-          "inline-block size-5 rounded-full bg-white shadow transition-transform",
-          checked ? "translate-x-4" : "translate-x-0"
-        )}
+      <SwitchPrimitive.Thumb
+        data-slot="switch-thumb"
+        className="pointer-events-none inline-block size-5 rounded-full bg-white shadow transition-transform data-[state=checked]:translate-x-4 data-[state=unchecked]:translate-x-0"
       />
-    </button>
+    </SwitchPrimitive.Root>
   )
 }
 

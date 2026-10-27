@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -46,9 +47,9 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
-  --color-card-foreground: var(--foreground);
-  --color-popover: var(--card);
-  --color-popover-foreground: var(--foreground);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
   --color-surface-muted: var(--surface-muted);
 
   --color-primary: var(--primary);
@@ -59,20 +60,20 @@
   --color-primary-200: var(--primary-200);
   --color-primary-ink: var(--primary-ink);
 
-  --color-secondary: var(--surface-muted);
-  --color-secondary-foreground: var(--foreground);
-  --color-muted: var(--surface-muted);
-  --color-muted-foreground: var(--fg-secondary);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
   --color-subtle-foreground: var(--fg-tertiary);
-  --color-accent: var(--surface-muted);
-  --color-accent-foreground: var(--foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
 
   --color-border: var(--border);
   --color-border-strong: var(--border-strong);
-  --color-input: var(--border-strong);
-  --color-ring: var(--primary);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
 
-  --color-destructive: var(--danger);
+  --color-destructive: var(--destructive);
   --color-danger: var(--danger);
   --color-danger-soft: var(--danger-soft);
   --color-warning-soft: var(--warning-soft);
@@ -85,12 +86,23 @@
   --color-neutral-soft: var(--neutral-soft);
   --color-neutral-ink: var(--neutral-ink);
 
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
   --color-bed-occupied: var(--bed-occupied);
 
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-active: var(--sidebar-active);
   --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-ring: var(--sidebar-ring);
 }
 
 :root {
@@ -167,6 +179,38 @@
   --sidebar-foreground: #cbd5e1;
   --sidebar-active: #164e63;
   --sidebar-border: #1e293b;
+}
+
+/*
+ * Alias con los nombres de variables de shadcn/ui, para que los componentes que se agreguen
+ * con `npx shadcn add` usen esta paleta. Apuntan a los tokens de arriba, así que .dark los hereda.
+ */
+:root {
+  --radius: 10px;
+  --card-foreground: var(--foreground);
+  --popover: var(--card);
+  --popover-foreground: var(--foreground);
+  --secondary: var(--surface-muted);
+  --secondary-foreground: var(--foreground);
+  --muted: var(--surface-muted);
+  --muted-foreground: var(--fg-secondary);
+  --accent: var(--surface-muted);
+  --accent-foreground: var(--foreground);
+  --destructive: var(--danger);
+  --input: var(--border-strong);
+  --ring: var(--primary);
+
+  --chart-1: var(--primary);
+  --chart-2: #2563eb;         /* chart-proceso */
+  --chart-3: #16a34a;         /* chart-completado */
+  --chart-4: #d97706;         /* chart-pendiente */
+  --chart-5: var(--fg-tertiary);
+
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: var(--sidebar-active);
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-ring: var(--primary);
 }
 
 @layer base {
