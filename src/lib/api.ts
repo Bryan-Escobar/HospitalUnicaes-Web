@@ -2,16 +2,24 @@ import { supabase } from '@/lib/client';
 
 const API_URL = ((import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:3000/api').replace(/\/+$/, '');
 
-// Error con el formato estándar de la API: { statusCode, success: false, code, message }.
+// Error de validación de un campo (400 VALIDACION): { field: 'email', message: '…' }.
+export interface ApiFieldError {
+    field: string;
+    message: string;
+}
+
+// Error con el formato estándar de la API: { statusCode, success: false, code, message, errors? }.
 export class ApiError extends Error {
     readonly status: number;
     readonly code: string | undefined;
+    readonly errors: ApiFieldError[];
 
-    constructor(status: number, code: string | undefined, message: string) {
+    constructor(status: number, code: string | undefined, message: string, errors: ApiFieldError[] = []) {
         super(message);
         this.name = 'ApiError';
         this.status = status;
         this.code = code;
+        this.errors = errors;
     }
 }
 
@@ -45,9 +53,11 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
         res = await enviar(path, init, data.session.access_token);
     }
 
-    const body = (await res.json().catch(() => null)) as { data?: T; code?: string; message?: string } | null;
+    const body = (await res.json().catch(() => null)) as
+        | { data?: T; code?: string; message?: string; errors?: ApiFieldError[] }
+        | null;
     if (!res.ok) {
-        throw new ApiError(res.status, body?.code, body?.message ?? `Error ${res.status} al llamar a la API.`);
+        throw new ApiError(res.status, body?.code, body?.message ?? `Error ${res.status} al llamar a la API.`, body?.errors);
     }
     return body?.data as T;
 }
