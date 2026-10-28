@@ -31,18 +31,6 @@ export interface MedicoDeTurno {
   tono: "primary" | "danger"
 }
 
-export type RolUsuario = "Administrador" | "Doctor" | "Recepcionista/Asistente"
-
-export interface PersonaPersonal {
-  id: string
-  nombre: string
-  correo: string | null
-  rol: RolUsuario | null
-  tipo: string
-  conCuenta: boolean
-  activo: boolean
-}
-
 export interface Paciente {
   id: string
   nombre: string

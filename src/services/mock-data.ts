@@ -10,7 +10,6 @@ import type {
     OrdenLaboratorio,
     Paciente,
     PerfilAdmin,
-    PersonaPersonal,
     Recurso,
     Reportes,
     SemanaTurnos,
@@ -52,61 +51,12 @@ export const dashboard: DashboardResumen = {
     ],
 };
 
-const personalDiseno: PersonaPersonal[] = [
-    { id: 'u1', nombre: 'Rosa Guzmán', correo: 'rosa.guzman@hospital.edu', rol: 'Administrador', tipo: 'Jefe de Operaciones', conCuenta: true, activo: true },
-    { id: 'u2', nombre: 'Dra. Ana Rivas', correo: 'ana.rivas@hospital.edu', rol: 'Doctor', tipo: 'Alergista', conCuenta: true, activo: true },
-    { id: 'u3', nombre: 'Dr. Carlos Molina', correo: 'carlos.molina@hospital.edu', rol: 'Doctor', tipo: 'Doctor · General', conCuenta: true, activo: true },
-    { id: 'u4', nombre: 'Dr. Jorge Peña', correo: 'jorge.pena@hospital.edu', rol: 'Doctor', tipo: 'Médico de emergencia', conCuenta: true, activo: true },
-    { id: 'u5', nombre: 'Karla Flores', correo: 'karla.flores@hospital.edu', rol: 'Recepcionista/Asistente', tipo: 'Asistente', conCuenta: true, activo: true },
-    { id: 'u6', nombre: 'Óscar Ramos', correo: 'oscar.ramos@hospital.edu', rol: 'Recepcionista/Asistente', tipo: 'Recepcionista', conCuenta: true, activo: true },
-    { id: 'u7', nombre: 'Lucía Torres', correo: 'lucia.torres@hospital.edu', rol: 'Recepcionista/Asistente', tipo: 'Enfermera', conCuenta: true, activo: true },
-    { id: 'u8', nombre: 'Raúl Campos', correo: null, rol: null, tipo: 'Conductor de ambulancia', conCuenta: false, activo: true },
-    { id: 'u9', nombre: 'Dra. Sofía Hernández', correo: 'sofia.h@hospital.edu', rol: 'Doctor', tipo: 'Doctor · General', conCuenta: true, activo: true },
-    { id: 'u10', nombre: 'Marta Díaz', correo: 'marta.diaz@hospital.edu', rol: 'Recepcionista/Asistente', tipo: 'Recepcionista', conCuenta: true, activo: false },
-];
-
 const NOMBRES = ['Daniel', 'Gabriela', 'Fernando', 'Patricia', 'Ricardo', 'Valeria', 'Andrés', 'Claudia', 'Emilio', 'Natalia', 'Héctor', 'Silvia', 'Mauricio', 'Beatriz', 'Rodrigo', 'Lorena', 'Samuel', 'Irene', 'Julio', 'Diana', 'Ernesto', 'Mónica', 'Kevin', 'Paola'];
 const APELLIDOS = ['Castro', 'Aguilar', 'Hernández', 'Martínez', 'Portillo', 'Rivera', 'Orellana', 'Flores', 'Menjívar', 'Alvarado', 'Guevara', 'Romero', 'Campos', 'Escobar', 'Mejía', 'Quintanilla'];
 
 function nombreSintetico(i: number) {
     return `${NOMBRES[i % NOMBRES.length]} ${APELLIDOS[(i * 7) % APELLIDOS.length]}`;
 }
-
-function slug(nombre: string) {
-    return nombre
-        .normalize('NFD')
-        .replace(/[̀-ͯ]/g, '')
-        .toLowerCase()
-        .replace(/\s+/g, '.');
-}
-
-const TIPOS_EXTRA: [PersonaPersonal['rol'], string][] = [
-    ['Recepcionista/Asistente', 'Enfermera'],
-    ['Recepcionista/Asistente', 'Enfermero'],
-    ['Doctor', 'Doctor · General'],
-    ['Recepcionista/Asistente', 'Asistente'],
-    ['Doctor', 'Pediatra'],
-    ['Recepcionista/Asistente', 'Recepcionista'],
-];
-
-// 34 personas · 31 con cuenta de acceso (WEB-3)
-export const personal: PersonaPersonal[] = [
-    ...personalDiseno,
-    ...Array.from({ length: 24 }, (_, i): PersonaPersonal => {
-        const nombre = nombreSintetico(i + 3);
-        const [rol, tipo] = TIPOS_EXTRA[i % TIPOS_EXTRA.length]!;
-        const soloTurnos = i >= 22; // 2 más sin cuenta (con Raúl Campos son 3)
-        return {
-            id: `u${i + 11}`,
-            nombre: rol === 'Doctor' ? `Dr. ${nombre}` : nombre,
-            correo: soloTurnos ? null : `${slug(nombre)}@hospital.edu`,
-            rol: soloTurnos ? null : rol,
-            tipo: soloTurnos ? 'Mantenimiento' : tipo,
-            conCuenta: !soloTurnos,
-            activo: i % 9 !== 4,
-        };
-    }),
-];
 
 const pacientesDiseno: Paciente[] = [
     { id: 'p1', nombre: 'Luis Martínez', documento: '01234567-8', telefono: '7000-1111', habitacion: 'HAB-204 · A', ultimaConsulta: '14 oct', medico: 'Dra. Ana Rivas' },

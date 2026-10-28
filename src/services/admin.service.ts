@@ -14,7 +14,6 @@ import type {
     Paciente,
     Paginado,
     PerfilAdmin,
-    PersonaPersonal,
     Recurso,
     Reportes,
     ResultadoServicio,
@@ -26,7 +25,7 @@ import * as db from './mock-data';
 const LATENCIA_MS = 450;
 
 // Respeta el modo de vista previa (?estado=carga|vacio|error) para revisar todos los estados.
-function responder<T>(data: T, vacio: T): Promise<T> {
+export function responder<T>(data: T, vacio: T): Promise<T> {
     const { mode } = useDemoStore.getState();
     if (mode === 'carga') return new Promise(() => {});
     return new Promise((resolve, reject) => {
@@ -70,35 +69,6 @@ export function obtenerDashboard(): Promise<DashboardResumen> {
         laboratorio: { pendiente: 0, en_proceso: 0, completado: 0 },
         medicosDeTurno: [],
     });
-}
-
-export interface FiltroPersonal {
-    busqueda: string;
-    rol: string;
-    tipo: string;
-    estado: 'activos' | 'inactivos' | 'todos';
-    cuenta: 'todos' | 'con_cuenta' | 'solo_turnos';
-    page: number;
-}
-
-export function listarPersonal(f: FiltroPersonal): Promise<Paginado<PersonaPersonal>> {
-    const items = db.personal.filter(
-        (p) =>
-            contiene([p.nombre, p.correo], f.busqueda) &&
-            (f.rol === 'todos' || p.rol === f.rol) &&
-            (f.tipo === 'todos' || p.tipo === f.tipo) &&
-            (f.estado === 'todos' || p.activo === (f.estado === 'activos')) &&
-            (f.cuenta === 'todos' || p.conCuenta === (f.cuenta === 'con_cuenta')),
-    );
-    return responder(paginar(items, f.page, PAGE_SIZE), vacioPaginado);
-}
-
-export function resumenPersonal() {
-    return { total: db.personal.length, conCuenta: db.personal.filter((p) => p.conCuenta).length };
-}
-
-export function tiposDePersonal() {
-    return [...new Set(db.personal.map((p) => p.tipo))].sort();
 }
 
 export interface FiltroPacientes {
