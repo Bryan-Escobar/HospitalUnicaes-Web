@@ -48,6 +48,26 @@ npm run dev
 
 Abre <http://localhost:5173> (u otra URL que indique Vite) y prueba el flujo.
 
+3. Pruebas (Vitest + Testing Library, entorno jsdom)
+
+```bash
+npm test
+```
+
+`npm run test:watch` las deja en modo observación. Los archivos `*.test.ts(x)` viven junto al código que prueban.
+
+## Docker (nginx)
+
+El `Dockerfile` compila la app con Node y sirve `dist/` con nginx (`nginx.conf` redirige las rutas de la SPA a `index.html`). Vite incrusta las variables `VITE_*` al compilar, así que se pasan como build args:
+
+```bash
+docker build -t hospitalunicaes-web --build-arg VITE_SUPABASE_URL=https://<tu-proyecto>.supabase.co --build-arg VITE_SUPABASE_PUBLISHABLE_OR_ANON_KEY=<tu-anon-key> --build-arg VITE_API_URL=https://<api>/api .
+```
+
+```bash
+docker run --rm -p 8080:80 hospitalunicaes-web
+```
+
 ## Flujo de la aplicación (autenticación)
 
 Resumen general:
@@ -74,6 +94,8 @@ Resumen general:
 - `src/context/AuthContext.tsx` — Proveedor de autenticación. Inicializa sesión, escucha cambios, expone `logIn`, `logOut`, `clearError`, y estado.
 - `src/store/useAuthStore.tsx` — Zustand store que mantiene `session`, `isLoggedIn`, `isLoading`, `error` y setters.
 - `src/lib/client.ts` — Cliente Supabase (lee variables de entorno). (Comprueba este archivo para confirmar nombres de env si cambias la convención.)
+- `src/lib/api.ts` — Cliente HTTP hacia HospitalUnicaes-Api: añade el JWT de Supabase y renueva la sesión ante un 401.
+- `src/lib/query-client.ts` — `QueryClient` de TanStack Query (montado en `src/main.tsx`).
 - `src/components/auth/login-form.tsx` — Formulario de login que consume `AuthContext`.
 - `src/components/auth/sign-up-form.tsx` — Formulario de registro (si está implementado en el repo).
 - `src/components/auth/ProtectedRoute.tsx` — Componente para proteger rutas.
