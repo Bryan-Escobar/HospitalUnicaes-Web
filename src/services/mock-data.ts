@@ -4,7 +4,6 @@
 import type {
     AmbulanciaEstado,
     Aviso,
-    DashboardResumen,
     InventarioResumen,
     MapaPlantas,
     OrdenLaboratorio,
@@ -23,32 +22,6 @@ export const perfil: PerfilAdmin = {
     telefono: '7000-0001',
     passwordCambiada: 'cambiada hace 2 meses',
     sesionesActivas: 1,
-};
-
-export const dashboard: DashboardResumen = {
-    fecha: 'Miércoles 21 de octubre',
-    ocupacion: { ocupadas: 12, total: 17 },
-    vip: { ocupadas: 3, total: 5 },
-    semiprivadas: { ocupadas: 9, total: 12 },
-    ambulancia: { estado: 'en_servicio', detalle: 'Despachada 10:14 · Emergencia cardíaca' },
-    citasHoy: { total: 18, atendidas: 11, programadas: 6, canceladas: 1 },
-    personalDeTurno: { total: 9, doctores: 4, enfermeria: 3, recepcion: 2 },
-    ocupacionPorDia: [
-        { dia: 'Jue', ocupadas: 10 },
-        { dia: 'Vie', ocupadas: 11 },
-        { dia: 'Sáb', ocupadas: 13 },
-        { dia: 'Dom', ocupadas: 12 },
-        { dia: 'Lun', ocupadas: 14 },
-        { dia: 'Mar', ocupadas: 13 },
-        { dia: 'Mié', ocupadas: 12 },
-    ],
-    laboratorio: { pendiente: 7, en_proceso: 4, completado: 16 },
-    medicosDeTurno: [
-        { nombre: 'Dr. Carlos Molina', horario: '07:00–15:00', area: 'Medicina general', tono: 'primary' },
-        { nombre: 'Dra. Ana Rivas', horario: '08:00–14:00', area: 'Alergista', tono: 'primary' },
-        { nombre: 'Dr. Jorge Peña', horario: '06:00–18:00', area: 'Emergencia', tono: 'danger' },
-        { nombre: 'Dra. Sofía Hernández', horario: '14:00–22:00', area: 'Medicina general', tono: 'primary' },
-    ],
 };
 
 const NOMBRES = ['Daniel', 'Gabriela', 'Fernando', 'Patricia', 'Ricardo', 'Valeria', 'Andrés', 'Claudia', 'Emilio', 'Natalia', 'Héctor', 'Silvia', 'Mauricio', 'Beatriz', 'Rodrigo', 'Lorena', 'Samuel', 'Irene', 'Julio', 'Diana', 'Ernesto', 'Mónica', 'Kevin', 'Paola'];

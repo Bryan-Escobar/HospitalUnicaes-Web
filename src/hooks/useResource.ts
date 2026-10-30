@@ -18,11 +18,13 @@ function defaultIsEmpty(data: unknown) {
 }
 
 // Carga un recurso y expone su estado (carga, error, vacío o con datos) para que tablas y paneles
-// muestren siempre el estado correspondiente.
+// muestren siempre el estado correspondiente. Con `refreshMs` vuelve a pedir el recurso cada cierto
+// tiempo sin pasar por el estado de carga; si una recarga falla se conservan los últimos datos.
 export function useResource<T>(
     fetcher: () => Promise<T>,
     deps: unknown[] = [],
     isEmpty: (data: T) => boolean = defaultIsEmpty,
+    { refreshMs }: { refreshMs?: number } = {},
 ): Resource<T> {
     const mode = useDemoStore((s) => s.mode);
     const [nonce, setNonce] = useState(0);
@@ -35,22 +37,28 @@ export function useResource<T>(
 
     useEffect(() => {
         let cancelled = false;
-        setState((s) => ({ ...s, status: 'loading', error: null }));
-        fetcher()
-            .then((data) => {
-                if (!cancelled) {
+        let ok = false;
+        const cargar = (silencioso: boolean) =>
+            fetcher()
+                .then((data) => {
+                    if (cancelled) return;
+                    ok = true;
                     setState({ status: isEmpty(data) ? 'empty' : 'success', data, error: null });
                     setUpdatedAt(Date.now());
-                }
-            })
-            .catch((error: unknown) => {
-                if (!cancelled) setState({ status: 'error', data: undefined, error });
-            });
+                })
+                .catch((error: unknown) => {
+                    if (!cancelled && !(silencioso && ok)) setState({ status: 'error', data: undefined, error });
+                });
+
+        setState((s) => ({ ...s, status: 'loading', error: null }));
+        void cargar(false);
+        const id = refreshMs ? setInterval(() => void cargar(true), refreshMs) : undefined;
         return () => {
             cancelled = true;
+            clearInterval(id);
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [mode, nonce, ...deps]);
+    }, [mode, nonce, refreshMs, ...deps]);
 
     const refetch = useCallback(() => setNonce((n) => n + 1), []);
 

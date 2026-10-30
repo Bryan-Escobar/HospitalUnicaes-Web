@@ -9,6 +9,8 @@ export const ESTADO_LABELS = {
     libre: 'Libre',
     ocupada: 'Ocupada',
     programada: 'Programada',
+    confirmada: 'Confirmada',
+    no_asistio: 'No asistió',
     atendida: 'Atendida',
     cancelada: 'Cancelada',
     finalizado: 'Finalizado',
