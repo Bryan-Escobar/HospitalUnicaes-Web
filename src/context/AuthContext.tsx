@@ -36,6 +36,7 @@ export interface AuthContextProps {
     clearError: () => void;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const AuthContext = createContext<AuthContextProps>({
     session: null,
     isLoading: true,
