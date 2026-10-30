@@ -11,26 +11,6 @@ export interface Paginado<T> {
   total: number
 }
 
-export interface DashboardResumen {
-  fecha: string
-  ocupacion: { ocupadas: number; total: number }
-  vip: { ocupadas: number; total: number }
-  semiprivadas: { ocupadas: number; total: number }
-  ambulancia: { estado: EstadoAmbulancia; detalle: string }
-  citasHoy: { total: number; atendidas: number; programadas: number; canceladas: number }
-  personalDeTurno: { total: number; doctores: number; enfermeria: number; recepcion: number }
-  ocupacionPorDia: { dia: string; ocupadas: number }[]
-  laboratorio: Record<EstadoLaboratorio, number>
-  medicosDeTurno: MedicoDeTurno[]
-}
-
-export interface MedicoDeTurno {
-  nombre: string
-  horario: string
-  area: string
-  tono: "primary" | "danger"
-}
-
 export interface Paciente {
   id: string
   nombre: string

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { PackageSearch, Plus, TriangleAlert } from 'lucide-react';
 
 import { KpiCard } from '@/components/KpiCard';
@@ -56,11 +57,13 @@ const columnas: Column<Recurso>[] = [
 
 // WEB-7 Inventario y recursos: existencias por categoría y alertas de stock bajo.
 export default function InventarioPage() {
+    // El dashboard enlaza aquí con ?stock=bajo para abrir la lista ya filtrada.
+    const [params] = useSearchParams();
     const [filtro, setFiltro] = useState<FiltroInventario>({
         busqueda: '',
         categoria: 'todas',
         ubicacion: 'todas',
-        soloStockBajo: false,
+        soloStockBajo: params.get('stock') === 'bajo',
         page: 1,
     });
     const resumen = useResource(obtenerResumenInventario);

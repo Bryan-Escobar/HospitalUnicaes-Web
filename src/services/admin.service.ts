@@ -5,7 +5,6 @@ import { useDemoStore } from '@/store/useDemoStore';
 import type {
     AmbulanciaEstado,
     Aviso,
-    DashboardResumen,
     EstadoAviso,
     EstadoLaboratorio,
     InventarioResumen,
@@ -55,21 +54,6 @@ function paginar<T>(items: T[], page: number, pageSize: number): Paginado<T> {
 const vacioPaginado = { items: [], total: 0 };
 
 export const PAGE_SIZE = 10;
-
-export function obtenerDashboard(): Promise<DashboardResumen> {
-    return responder(db.dashboard, {
-        ...db.dashboard,
-        ocupacion: { ocupadas: 0, total: 17 },
-        vip: { ocupadas: 0, total: 5 },
-        semiprivadas: { ocupadas: 0, total: 12 },
-        ambulancia: { estado: 'disponible', detalle: 'Sin servicios hoy' },
-        citasHoy: { total: 0, atendidas: 0, programadas: 0, canceladas: 0 },
-        personalDeTurno: { total: 0, doctores: 0, enfermeria: 0, recepcion: 0 },
-        ocupacionPorDia: [],
-        laboratorio: { pendiente: 0, en_proceso: 0, completado: 0 },
-        medicosDeTurno: [],
-    });
-}
 
 export interface FiltroPacientes {
     busqueda: string;

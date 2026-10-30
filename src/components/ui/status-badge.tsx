@@ -22,6 +22,8 @@ const ESTILOS: Record<Estado, { tone: Tone; icon: Glyph }> = {
   ocupada: { tone: "neutral", icon: "dot" },
   // Cita
   programada: { tone: "info", icon: Clock },
+  confirmada: { tone: "primary", icon: Check },
+  no_asistio: { tone: "warning", icon: X },
   atendida: { tone: "success", icon: Check },
   cancelada: { tone: "neutral", icon: X },
   // Bitácora / solicitudes
