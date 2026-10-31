@@ -1,0 +1,114 @@
+name: Web CI
+
+on:
+  pull_request:
+    branches: ['development', 'staging', 'prod']
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  # Filtro de rutas: si el PR solo toca documentación, los demás jobs quedan
+  # "skipped", que cuenta como aprobado en los checks requeridos. Con
+  # on.pull_request.paths el workflow ni arrancaría y el check quedaría pendiente.
+  changes:
+    name: changes
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+
+    steps:
+      - name: Detectar cambios de código
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          predicate-quantifier: 'every'
+          filters: |
+            code:
+              - '**'
+              - '!**/*.md'
+              - '!docs/**'
+
+  lint:
+    name: lint-web
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout del código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npx tsc -b
+
+  test:
+    name: test-web
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout del código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: test-web
+        run: npm test
+
+  # Construye la imagen igual que Dokploy (Vite + nginx) y comprueba que nginx
+  # sirve la SPA, incluido el fallback a index.html en rutas del cliente.
+  docker:
+    name: docker-build
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout del código
+        uses: actions/checkout@v4
+
+      - name: Construir la imagen
+        run: |
+          docker build -t hospitalunicaes-web:ci \
+            --build-arg VITE_SUPABASE_URL="https://example.supabase.co" \
+            --build-arg VITE_SUPABASE_PUBLISHABLE_OR_ANON_KEY="ci-fake-key" \
+            --build-arg VITE_API_URL="http://127.0.0.1:3000" \
+            .
+
+      - name: Arrancar el contenedor
+        run: docker run -d --name web -p 8080:80 hospitalunicaes-web:ci
+
+      - name: GET / y ruta del cliente
+        run: |
+          for i in $(seq 1 15); do
+            curl -fsS -o /dev/null http://127.0.0.1:8080/ && break
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8080/ | grep -q '<div id="root">'
+          curl -fsS http://127.0.0.1:8080/login | grep -q '<div id="root">'
+
+      - name: Logs del contenedor
+        if: always()
+        run: docker logs web
