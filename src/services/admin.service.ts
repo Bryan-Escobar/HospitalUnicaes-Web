@@ -10,7 +10,6 @@ import type {
     InventarioResumen,
     MapaPlantas,
     OrdenLaboratorio,
-    Paciente,
     Paginado,
     PerfilAdmin,
     Recurso,
@@ -53,31 +52,6 @@ function paginar<T>(items: T[], page: number, pageSize: number): Paginado<T> {
 const vacioPaginado = { items: [], total: 0 };
 
 export const PAGE_SIZE = 10;
-
-export interface FiltroPacientes {
-    busqueda: string;
-    hospitalizacion: 'todos' | 'hospitalizados' | 'ambulatorios';
-    medico: string;
-    page: number;
-}
-
-export function listarPacientes(f: FiltroPacientes): Promise<Paginado<Paciente>> {
-    const items = db.pacientes.filter(
-        (p) =>
-            contiene([p.nombre, p.documento], f.busqueda) &&
-            (f.hospitalizacion === 'todos' || (p.habitacion !== null) === (f.hospitalizacion === 'hospitalizados')) &&
-            (f.medico === 'todos' || p.medico === f.medico),
-    );
-    return responder(paginar(items, f.page, PAGE_SIZE), vacioPaginado);
-}
-
-export function resumenPacientes() {
-    return { total: db.pacientes.length, hospitalizados: db.pacientes.filter((p) => p.habitacion).length };
-}
-
-export function medicosTratantes() {
-    return [...new Set(db.pacientes.map((p) => p.medico))].sort();
-}
 
 export function obtenerMapa(): Promise<MapaPlantas> {
     // El mapa nunca está «vacío»: las 11 habitaciones son datos semilla. En modo vacío todas quedan libres.

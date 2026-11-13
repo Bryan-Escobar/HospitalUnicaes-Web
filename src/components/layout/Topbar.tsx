@@ -47,14 +47,14 @@ export function Topbar() {
                 className="min-w-0 flex-1 basis-[420px] max-w-[420px]"
                 onSubmit={(e) => {
                     e.preventDefault();
-                    navigate(`/pacientes?q=${encodeURIComponent(q)}`);
+                    navigate('/pacientes', { state: { busqueda: q } });
                 }}
             >
                 <SearchInput
                     value={q}
                     onChange={(e) => setQ(e.target.value)}
-                    placeholder="Buscar paciente, personal o habitación"
-                    aria-label="Buscar paciente, personal o habitación"
+                    placeholder="Buscar paciente"
+                    aria-label="Buscar paciente"
                 />
             </form>
             <div className="ml-auto flex shrink-0 items-center gap-4">
