@@ -115,6 +115,10 @@ function normalizar(texto: string) {
         .toLowerCase();
 }
 
+export function obtener(id: string): Personal | undefined {
+    return personal.find((p) => p.id === id);
+}
+
 export function listar(f: FiltroPersonal, porPagina: number): PaginaPersonal {
     const q = normalizar(f.busqueda.trim());
     const items = personal

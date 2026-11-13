@@ -16,7 +16,6 @@ import type {
     Recurso,
     Reportes,
     ResultadoServicio,
-    SemanaTurnos,
     ServicioBitacora,
 } from '@/types/admin.types';
 import * as db from './mock-data';
@@ -78,10 +77,6 @@ export function resumenPacientes() {
 
 export function medicosTratantes() {
     return [...new Set(db.pacientes.map((p) => p.medico))].sort();
-}
-
-export function obtenerTurnos(): Promise<SemanaTurnos> {
-    return responder(db.turnos, { ...db.turnos, filas: [], conflicto: null });
 }
 
 export function obtenerMapa(): Promise<MapaPlantas> {

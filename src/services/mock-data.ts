@@ -11,7 +11,6 @@ import type {
     PerfilAdmin,
     Recurso,
     Reportes,
-    SemanaTurnos,
     ServicioBitacora,
 } from '@/types/admin.types';
 
@@ -81,47 +80,6 @@ export const pacientes: Paciente[] = [
         };
     }),
 ];
-
-export const turnos: SemanaTurnos = {
-    titulo: 'Semana del 19 al 25 de octubre',
-    dias: ['Lun 19', 'Mar 20', 'Mié 21', 'Jue 22', 'Vie 23', 'Sáb 24', 'Dom 25'],
-    conflicto:
-        'Dra. Sofía Hernández tendría dos turnos el jueves 22 (12:00–20:00 y 14:00–22:00). El turno nuevo no se guardó.',
-    filas: [
-        {
-            id: 't1', nombre: 'Dra. Ana Rivas', tipo: 'Alergista',
-            dias: [{ horario: '08:00–14:00', area: 'C. externa' }, null, { horario: '08:00–14:00', area: 'C. externa' }, { horario: '08:00–14:00', area: 'C. externa' }, null, null, null],
-        },
-        {
-            id: 't2', nombre: 'Dr. Carlos Molina', tipo: 'Doctor',
-            dias: [{ horario: '07:00–15:00' }, { horario: '07:00–15:00' }, { horario: '07:00–15:00' }, null, { horario: '07:00–15:00' }, null, null],
-        },
-        {
-            id: 't3', nombre: 'Dr. Jorge Peña', tipo: 'Emergencia',
-            dias: [{ horario: '06:00–18:00', area: 'Emergencias' }, null, { horario: '06:00–18:00', area: 'Emergencias' }, null, { horario: '18:00–06:00', area: 'Nocturno' }, null, null],
-        },
-        {
-            id: 't4', nombre: 'Dra. Sofía Hernández', tipo: 'Doctor',
-            dias: [null, { horario: '14:00–22:00' }, { horario: '14:00–22:00' }, { horario: '12:00–20:00 y 14:00–22:00', solapa: true }, null, { horario: '08:00–16:00' }, null],
-        },
-        {
-            id: 't5', nombre: 'Lucía Torres', tipo: 'Enfermera',
-            dias: [{ horario: '06:00–14:00', area: 'Planta 2' }, { horario: '06:00–14:00', area: 'Planta 2' }, { horario: '06:00–14:00', area: 'Planta 2' }, { horario: '06:00–14:00', area: 'Planta 3' }, null, null, null],
-        },
-        {
-            id: 't6', nombre: 'Karla Flores', tipo: 'Asistente',
-            dias: [{ horario: '07:00–15:00', area: 'Laboratorio' }, { horario: '07:00–15:00' }, { horario: '07:00–15:00' }, { horario: '07:00–15:00' }, { horario: '07:00–15:00' }, null, null],
-        },
-        {
-            id: 't7', nombre: 'Óscar Ramos', tipo: 'Recepcionista',
-            dias: [{ horario: '07:00–15:00' }, { horario: '07:00–15:00' }, { horario: '07:00–15:00' }, null, null, { horario: '07:00–15:00' }, { horario: '07:00–15:00' }],
-        },
-        {
-            id: 't8', nombre: 'Raúl Campos', tipo: 'Conductor (solo turnos)',
-            dias: [{ horario: '06:00–18:00', area: 'Ambulancia' }, null, { horario: '06:00–18:00', area: 'Ambulancia' }, null, { horario: '06:00–18:00', area: 'Ambulancia' }, null, null],
-        },
-    ],
-};
 
 export const mapa: MapaPlantas = {
     ultimoCambio: 'HAB-202 · B pasó a Ocupada (asignada desde Android por Karla Flores).',

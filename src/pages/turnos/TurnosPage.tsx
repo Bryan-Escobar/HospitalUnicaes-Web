@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { CalendarX2, ChevronLeft, ChevronRight, Plus, TriangleAlert } from 'lucide-react';
+import { useState } from 'react';
+import { CalendarX2, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 
 import { PageHeader, Toolbar } from '@/components/layout/AdminLayout';
 import { Alert } from '@/components/ui/alert';
@@ -8,113 +8,151 @@ import { Button } from '@/components/ui/button';
 import { DataTable, type Column } from '@/components/ui/data-table';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { Select } from '@/components/ui/select';
-import { selectResource, useResource } from '@/hooks/useResource';
+import { useResource } from '@/hooks/useResource';
+import { fechaHospital, instanteHospital, lunesDe, sumarDias } from '@/lib/fechas-hospital';
 import { cn } from '@/lib/utils';
-import { obtenerTurnos } from '@/services/admin.service';
-import type { FilaTurnos, Turno } from '@/types/admin.types';
+import { listarTurnos } from '@/services/turnos.service';
+import { TIPOS_TURNO, type Turno } from '@/types/turnos.types';
+import { TurnoFormDialog } from './TurnoFormDialog';
 
-// Agrupación por área para la vista «Por área» y el filtro.
-const AREA_POR_TIPO: Record<string, string> = {
-    Alergista: 'Consulta externa',
-    Doctor: 'Consulta externa',
-    Emergencia: 'Emergencias',
-    Enfermera: 'Enfermería',
-    Asistente: 'Recepción y apoyo',
-    Recepcionista: 'Recepción y apoyo',
-    'Conductor (solo turnos)': 'Ambulancia',
-};
-const area = (f: FilaTurnos) => AREA_POR_TIPO[f.tipo] ?? 'Otras';
-const HOY = 2; // Miércoles 21
+const formatoDia = new Intl.DateTimeFormat('es-SV', { weekday: 'short', day: 'numeric', timeZone: 'UTC' });
+const formatoSemana = new Intl.DateTimeFormat('es-SV', { dateStyle: 'long', timeZone: 'UTC' });
+const fechaUTC = (fecha: string) => new Date(`${fecha}T00:00:00Z`);
 
-function CeldaTurno({ turno }: { turno: Turno | null }) {
-    if (!turno) return <span className="sr-only">Sin turno</span>;
-    return (
-        <span
-            className={cn(
-                'block rounded-sm border px-2 py-1.5 text-xs leading-4 font-medium tabular',
-                turno.solapa
-                    ? 'border-warning-border bg-warning-soft text-warning-ink'
-                    : 'border-primary-200 bg-primary-soft text-primary-ink',
-            )}
-        >
-            {turno.solapa ? (
-                <>
-                    <span className="flex items-center gap-1 font-semibold">
-                        <TriangleAlert className="size-3" aria-hidden /> Solapa
-                    </span>
-                    {turno.horario.split(' y ').map((h) => (
-                        <span key={h} className="block whitespace-nowrap">
-                            {h}
-                        </span>
-                    ))}
-                </>
-            ) : (
-                <span className="block whitespace-nowrap">{turno.horario}</span>
-            )}
-            {turno.area && <span className="block font-normal break-words">{turno.area}</span>}
-        </span>
+interface FilaTurnos {
+    id: string;
+    nombre: string;
+    tipo: string;
+    area?: string;
+    turnos: Turno[];
+}
+
+function agruparTurnos(turnos: Turno[], porArea: boolean): FilaTurnos[] {
+    const filas = new Map<string, FilaTurnos>();
+    for (const turno of turnos) {
+        const id = porArea ? `${turno.personal_id}:${turno.area}` : turno.personal_id;
+        const fila = filas.get(id) ?? {
+            id,
+            nombre: `${turno.nombres} ${turno.apellidos}`,
+            tipo: turno.tipo_personal,
+            area: porArea ? turno.area : undefined,
+            turnos: [],
+        };
+        fila.turnos.push(turno);
+        filas.set(id, fila);
+    }
+
+    return [...filas.values()].sort((a, b) =>
+        (a.area ?? '').localeCompare(b.area ?? '', 'es') || a.nombre.localeCompare(b.nombre, 'es'),
     );
 }
 
-// WEB-5 Turnos: horario semanal del personal y detección de solapamientos.
+function CeldaTurnos({ turnos, fecha }: { turnos: Turno[]; fecha: string }) {
+    const inicioDia = Date.parse(instanteHospital(fecha));
+    const finDia = Date.parse(instanteHospital(sumarDias(fecha, 1)));
+    const delDia = turnos
+        .filter((t) => Date.parse(t.inicio) < finDia && Date.parse(t.fin) > inicioDia)
+        .sort((a, b) => Date.parse(a.inicio) - Date.parse(b.inicio));
+    if (delDia.length === 0) return <span className="sr-only">Sin turno</span>;
+
+    return (
+        <ul className="space-y-1">
+            {delDia.map((turno) => {
+                const inicio = Date.parse(turno.inicio) < inicioDia ? '00:00' : turno.hora_inicio.slice(0, 5);
+                const fin = Date.parse(turno.fin) >= finDia ? '24:00' : turno.hora_fin.slice(0, 5);
+                return (
+                    <li key={turno.id} className="rounded-sm border border-primary-200 bg-primary-soft px-1.5 py-1 text-xs leading-4 text-primary-ink">
+                        <span className="block whitespace-nowrap font-semibold tabular">{inicio}–{fin}</span>
+                        <span className="block break-words">{turno.area}</span>
+                        <span className="block">{TIPOS_TURNO[turno.tipo_turno]}</span>
+                    </li>
+                );
+            })}
+        </ul>
+    );
+}
+
 export default function TurnosPage() {
+    const hoy = fechaHospital();
+    const lunesActual = lunesDe(hoy);
+    const [lunes, setLunes] = useState(() => lunesDe(fechaHospital()));
     const [vista, setVista] = useState<'persona' | 'area'>('persona');
-    const [filtroArea, setFiltroArea] = useState('todas');
-    const [filtroTipo, setFiltroTipo] = useState('todos');
-    const semana = useResource(obtenerTurnos);
+    const [filtroArea, setFiltroArea] = useState('');
+    const [filtroTipo, setFiltroTipo] = useState('');
+    const [formularioAbierto, setFormularioAbierto] = useState(false);
+    const [turnoGuardado, setTurnoGuardado] = useState(false);
+    const semana = useResource(() => listarTurnos(lunes, sumarDias(lunes, 7)), [lunes]);
+    const turnos = semana.data ?? [];
+    const areas = [...new Set(turnos.map((t) => t.area))].sort((a, b) => a.localeCompare(b, 'es'));
+    const tipos = [...new Set(turnos.map((t) => t.tipo_personal))].sort((a, b) => a.localeCompare(b, 'es'));
+    const filas = agruparTurnos(
+        turnos.filter((t) => (!filtroArea || t.area === filtroArea) && (!filtroTipo || t.tipo_personal === filtroTipo)),
+        vista === 'area',
+    );
+    const estadoTabla = semana.status === 'success' && filas.length === 0 ? 'empty' : semana.status;
 
-    const filas = useMemo(() => {
-        const todas = semana.data?.filas ?? [];
-        const filtradas = todas.filter(
-            (f) => (filtroArea === 'todas' || area(f) === filtroArea) && (filtroTipo === 'todos' || f.tipo === filtroTipo),
-        );
-        return vista === 'area' ? [...filtradas].sort((a, b) => area(a).localeCompare(area(b))) : filtradas;
-    }, [semana.data, filtroArea, filtroTipo, vista]);
+    function cambiarSemana(fecha: string) {
+        setLunes(fecha);
+        setFiltroArea('');
+        setFiltroTipo('');
+        setTurnoGuardado(false);
+    }
 
-    const tabla = selectResource(semana, () => filas, (v) => v.length === 0);
-    const dias = semana.data?.dias ?? ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
-    const tipos = [...new Set((semana.data?.filas ?? []).map((f) => f.tipo))];
-    const areas = [...new Set(Object.values(AREA_POR_TIPO))];
+    function alGuardar(fecha: string) {
+        cambiarSemana(lunesDe(fecha));
+        setFormularioAbierto(false);
+        setTurnoGuardado(true);
+        semana.refetch();
+    }
+
+    const nuevoTurno = (
+        <Button onClick={() => { setTurnoGuardado(false); setFormularioAbierto(true); }}>
+            <Plus /> Nuevo turno
+        </Button>
+    );
 
     const columnas: Column<FilaTurnos>[] = [
         {
             header: vista === 'area' ? 'Área · persona' : 'Persona · tipo',
-            className: 'w-[200px] 2xl:w-[260px]',
-            skeleton: 'w-32',
+            className: 'w-44 align-top',
+            skeleton: 'w-28',
             cell: (f) => (
                 <div className="py-1">
-                    {vista === 'area' && <p className="text-[11px] font-semibold tracking-wide text-primary uppercase">{area(f)}</p>}
+                    {f.area && <p className="text-xs font-semibold text-primary">{f.area}</p>}
                     <p className="font-semibold">{f.nombre}</p>
                     <Badge className="mt-1">{f.tipo}</Badge>
                 </div>
             ),
         },
-        ...dias.map(
-            (dia, i): Column<FilaTurnos> => ({
-                header: i === HOY ? `${dia} · hoy` : dia,
-                className: cn('align-middle', i === HOY && 'bg-primary-soft/40 text-primary-ink'),
+        ...Array.from({ length: 7 }, (_, i): Column<FilaTurnos> => {
+            const fecha = sumarDias(lunes, i);
+            const dia = formatoDia.format(fechaUTC(fecha));
+            return {
+                header: fecha === hoy ? `${dia} · hoy` : dia,
+                className: cn('px-2 align-top', fecha === hoy && 'bg-primary-soft/40'),
                 skeleton: 'w-full h-7',
-                cell: (f) => <CeldaTurno turno={f.dias[i] ?? null} />,
-            }),
-        ),
+                cell: (f) => <CeldaTurnos turnos={f.turnos} fecha={fecha} />,
+            };
+        }),
     ];
 
     return (
         <>
             <PageHeader
                 title="Turnos"
-                subtitle={semana.data?.titulo ?? 'Semana del 19 al 25 de octubre'}
+                subtitle={formatoSemana.formatRange(fechaUTC(lunes), fechaUTC(sumarDias(lunes, 6)))}
                 actions={
                     <>
-                        <Button variant="outline">
+                        <Button variant="outline" onClick={() => cambiarSemana(sumarDias(lunes, -7))}>
                             <ChevronLeft /> Semana anterior
                         </Button>
-                        <Button variant="outline">
+                        <Button variant="outline" disabled={lunes === lunesActual} onClick={() => cambiarSemana(lunesActual)}>
+                            Semana actual
+                        </Button>
+                        <Button variant="outline" onClick={() => cambiarSemana(sumarDias(lunes, 7))}>
                             Siguiente <ChevronRight />
                         </Button>
-                        <Button>
-                            <Plus /> Nuevo turno
-                        </Button>
+                        {nuevoTurno}
                     </>
                 }
             />
@@ -129,58 +167,38 @@ export default function TurnosPage() {
                     ]}
                 />
                 <Select aria-label="Área" value={filtroArea} onChange={(e) => setFiltroArea(e.target.value)}>
-                    <option value="todas">Área: Todas</option>
-                    {areas.map((a) => (
-                        <option key={a}>{a}</option>
-                    ))}
+                    <option value="">Todas las áreas</option>
+                    {areas.map((a) => <option key={a}>{a}</option>)}
                 </Select>
-                <Select aria-label="Tipo" value={filtroTipo} onChange={(e) => setFiltroTipo(e.target.value)}>
-                    <option value="todos">Tipo: Todos</option>
-                    {tipos.map((t) => (
-                        <option key={t}>{t}</option>
-                    ))}
+                <Select aria-label="Tipo de personal" value={filtroTipo} onChange={(e) => setFiltroTipo(e.target.value)}>
+                    <option value="">Todos los tipos de personal</option>
+                    {tipos.map((t) => <option key={t}>{t}</option>)}
                 </Select>
             </Toolbar>
 
-            {semana.status === 'success' && semana.data?.conflicto && (
-                <Alert
-                    tone="warning"
-                    title="Solapamiento"
-                    className="mb-4"
-                    action={
-                        <Button variant="link" size="sm" className="text-warning-ink">
-                            Editar turno
-                        </Button>
-                    }
-                >
-                    {semana.data.conflicto}
-                </Alert>
-            )}
+            {turnoGuardado && <Alert title="Turno registrado" className="mb-4" />}
 
             <DataTable
                 label="Turnos de la semana"
                 columns={columnas}
-                rows={tabla.data}
-                status={tabla.status}
+                rows={filas}
+                status={estadoTabla}
                 rowKey={(f) => f.id}
                 onRetry={semana.refetch}
-                skeletonRows={8}
                 fixedLayout
-                empty={
-                    semana.status === 'empty' || (semana.data?.filas.length ?? 0) === 0
-                        ? {
-                              icon: CalendarX2,
-                              title: 'No hay turnos esta semana',
-                              description: 'Crea el primer turno o copia el horario de la semana anterior.',
-                              action: (
-                                  <Button>
-                                      <Plus /> Nuevo turno
-                                  </Button>
-                              ),
-                          }
-                        : { title: 'Sin coincidencias', description: 'Nadie tiene turnos con esos filtros.' }
-                }
+                empty={turnos.length === 0
+                    ? { icon: CalendarX2, title: 'No hay turnos esta semana', action: nuevoTurno }
+                    : { title: 'Sin coincidencias', description: 'Nadie tiene turnos con esos filtros.' }}
             />
+
+            {formularioAbierto && (
+                <TurnoFormDialog
+                    fechaInicial={lunes === lunesActual ? hoy : lunes}
+                    areas={areas}
+                    onClose={() => setFormularioAbierto(false)}
+                    onSaved={alGuardar}
+                />
+            )}
         </>
     );
 }
