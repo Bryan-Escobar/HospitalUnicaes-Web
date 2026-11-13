@@ -6,10 +6,8 @@ import type {
     AmbulanciaEstado,
     Aviso,
     EstadoAviso,
-    EstadoLaboratorio,
     InventarioResumen,
     MapaPlantas,
-    OrdenLaboratorio,
     Paginado,
     PerfilAdmin,
     Recurso,
@@ -95,31 +93,6 @@ export function categoriasInventario() {
 
 export function ubicacionesInventario() {
     return [...new Set(db.recursos.map((r) => r.ubicacion))].sort();
-}
-
-export interface FiltroLaboratorio {
-    estado: EstadoLaboratorio | 'todas';
-    doctor: string;
-    page: number;
-}
-
-export function listarOrdenes(f: FiltroLaboratorio): Promise<Paginado<OrdenLaboratorio> & { conteo: Record<EstadoLaboratorio | 'todas', number> }> {
-    const porDoctor = db.ordenes.filter((o) => f.doctor === 'todos' || o.doctor === f.doctor);
-    const conteo = {
-        todas: porDoctor.length,
-        pendiente: porDoctor.filter((o) => o.estado === 'pendiente').length,
-        en_proceso: porDoctor.filter((o) => o.estado === 'en_proceso').length,
-        completado: porDoctor.filter((o) => o.estado === 'completado').length,
-    };
-    const items = porDoctor.filter((o) => f.estado === 'todas' || o.estado === f.estado);
-    return responder(
-        { ...paginar(items, f.page, PAGE_SIZE), conteo },
-        { ...vacioPaginado, conteo: { todas: 0, pendiente: 0, en_proceso: 0, completado: 0 } },
-    );
-}
-
-export function doctoresLaboratorio() {
-    return [...new Set(db.ordenes.map((o) => o.doctor))].sort();
 }
 
 export function obtenerAmbulancia(): Promise<AmbulanciaEstado> {

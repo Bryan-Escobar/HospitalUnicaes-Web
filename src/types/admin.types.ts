@@ -58,16 +58,6 @@ export interface InventarioResumen {
   actualizadoPor: string
 }
 
-export interface OrdenLaboratorio {
-  id: number
-  examen: string
-  paciente: string
-  doctor: string
-  creada: string
-  estado: EstadoLaboratorio
-  resultado: { pdf: boolean; texto: boolean } | null
-}
-
 export interface AmbulanciaEstado {
   estado: EstadoAmbulancia
   desde: string

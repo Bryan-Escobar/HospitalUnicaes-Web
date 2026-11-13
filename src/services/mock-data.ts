@@ -6,7 +6,6 @@ import type {
     Aviso,
     InventarioResumen,
     MapaPlantas,
-    OrdenLaboratorio,
     Paciente,
     PerfilAdmin,
     Recurso,
@@ -158,40 +157,6 @@ export const inventarioResumen: InventarioResumen = {
     ultimaActualizacion: 'Hoy 09:12',
     actualizadoPor: 'Rosa Guzmán',
 };
-
-// 27 órdenes: 7 Pendiente · 4 En Proceso · 16 Completado (WEB-8)
-const ordenesDiseno: OrdenLaboratorio[] = [
-    { id: 1042, examen: 'Examen general de orina', paciente: 'Luis Martínez', doctor: 'Dr. Molina', creada: '10:41', estado: 'en_proceso', resultado: null },
-    { id: 1041, examen: 'Hemograma completo', paciente: 'María López', doctor: 'Dr. Peña', creada: '09:40', estado: 'pendiente', resultado: null },
-    { id: 1040, examen: 'Química sanguínea', paciente: 'Elena Cruz', doctor: 'Dr. Molina', creada: '09:15', estado: 'pendiente', resultado: null },
-    { id: 1039, examen: 'Prueba cutánea', paciente: 'Pedro Alas', doctor: 'Dra. Rivas', creada: '08:50', estado: 'pendiente', resultado: null },
-    { id: 1038, examen: 'Hemograma completo', paciente: 'Tomás Mora', doctor: 'Dr. Peña', creada: '08:10', estado: 'completado', resultado: { pdf: true, texto: true } },
-    { id: 1037, examen: 'Química sanguínea', paciente: 'Tomás Mora', doctor: 'Dr. Peña', creada: '08:10', estado: 'en_proceso', resultado: null },
-    { id: 1036, examen: 'Perfil lipídico', paciente: 'Rosa Méndez', doctor: 'Dr. Molina', creada: 'ayer', estado: 'pendiente', resultado: null },
-    { id: 1035, examen: 'Prueba cutánea', paciente: 'Luis Martínez', doctor: 'Dra. Rivas', creada: '14 oct', estado: 'completado', resultado: { pdf: true, texto: true } },
-    { id: 1034, examen: 'Radiografía de tórax', paciente: 'Ana Vega', doctor: 'Dr. Peña', creada: '13 oct', estado: 'completado', resultado: { pdf: true, texto: false } },
-    { id: 1033, examen: 'Glucosa en ayunas', paciente: 'José Díaz', doctor: 'Dr. Molina', creada: '12 oct', estado: 'completado', resultado: { pdf: false, texto: true } },
-];
-
-const EXAMENES = ['Hemograma completo', 'Química sanguínea', 'Perfil lipídico', 'Glucosa en ayunas', 'Examen general de orina', 'Prueba cutánea'];
-const ESTADOS_RESTO: OrdenLaboratorio['estado'][] = [
-    'pendiente', 'pendiente', 'pendiente', 'en_proceso', 'en_proceso',
-    'completado', 'completado', 'completado', 'completado', 'completado', 'completado',
-    'completado', 'completado', 'completado', 'completado', 'completado', 'completado',
-];
-
-export const ordenes: OrdenLaboratorio[] = [
-    ...ordenesDiseno,
-    ...ESTADOS_RESTO.map((estado, i): OrdenLaboratorio => ({
-        id: 1032 - i,
-        examen: EXAMENES[i % EXAMENES.length]!,
-        paciente: pacientes[12 + i]!.nombre,
-        doctor: ['Dr. Molina', 'Dra. Rivas', 'Dr. Peña', 'Dra. Hernández'][i % 4]!,
-        creada: `${11 - Math.floor(i / 3)} oct`,
-        estado,
-        resultado: estado === 'completado' ? { pdf: i % 2 === 0, texto: true } : null,
-    })),
-];
 
 export const ambulancia: AmbulanciaEstado = {
     estado: 'en_servicio',
