@@ -21,27 +21,6 @@ export interface Paciente {
   medico: string
 }
 
-export interface Turno {
-  horario: string
-  area?: string
-  solapa?: boolean
-}
-
-export interface FilaTurnos {
-  id: string
-  nombre: string
-  tipo: string
-  // Lunes a domingo
-  dias: (Turno | null)[]
-}
-
-export interface SemanaTurnos {
-  titulo: string
-  dias: string[]
-  filas: FilaTurnos[]
-  conflicto: string | null
-}
-
 export interface Cama {
   cama: "A" | "B" | null
   paciente: string | null
