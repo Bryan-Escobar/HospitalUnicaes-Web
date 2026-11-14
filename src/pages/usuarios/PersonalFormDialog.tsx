@@ -24,14 +24,28 @@ interface Formulario {
     num_licencia: string;
     fecha_contratacion: string;
     email: string;
-    password: string;
 }
 
-type Errores = Partial<Record<keyof Formulario, string>>;
+type Errores = Partial<Record<keyof Formulario | 'password', string>>;
 
 const ROLES_DE_CUENTA: RolPersonal[] = ['administrador', 'doctor', 'recepcionista'];
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const LONGITUD_CODIGO = 30;
+
+function capitalizarIniciales(nombre: string) {
+    return nombre.replace(/(^|[\s'’-])(\p{L})/gu, (_, separador: string, letra: string) => separador + letra.toUpperCase());
+}
+
+function prefijoDelTipo(tipo: TipoPersonal) {
+    const letras = tipo.nombre.normalize('NFD').toUpperCase().replace(/[^A-Z]/g, '');
+    return `${(letras.slice(0, 3) || 'EMP').padEnd(3, 'X')}-`;
+}
+
+function generarPassword() {
+    const bytes = crypto.getRandomValues(new Uint8Array(12));
+    return `Aa1!${Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')}`;
+}
 
 function inicial(p: Personal | null): Formulario {
     return {
@@ -44,7 +58,6 @@ function inicial(p: Personal | null): Formulario {
         num_licencia: p?.num_licencia ?? '',
         fecha_contratacion: p?.fecha_contratacion ?? '',
         email: '',
-        password: '',
     };
 }
 
@@ -55,15 +68,16 @@ function rolDelTipo(tipo: TipoPersonal | undefined): RolPersonal | null {
 }
 
 // Mismas reglas que personal.validator.ts de la API, para avisar antes de enviar.
-function validar(f: Formulario, conCuenta: boolean, tieneCuenta: boolean, tipo: TipoPersonal | undefined): Errores {
+function validar(f: Formulario, conCuenta: boolean, tieneCuenta: boolean, tipo: TipoPersonal | undefined, editando: boolean): Errores {
     const e: Errores = {};
     if (!f.nombres.trim()) e.nombres = 'Escribe los nombres.';
     else if (f.nombres.trim().length > 100) e.nombres = 'Máximo 100 caracteres.';
     if (!f.apellidos.trim()) e.apellidos = 'Escribe los apellidos.';
     else if (f.apellidos.trim().length > 100) e.apellidos = 'Máximo 100 caracteres.';
-    if (!f.codigo_empleado.trim()) e.codigo_empleado = 'Escribe el código de empleado.';
-    else if (f.codigo_empleado.trim().length > 30) e.codigo_empleado = 'Máximo 30 caracteres.';
-    if (!f.tipo_personal_id) e.tipo_personal_id = 'Elige el tipo de personal.';
+    const maxCodigo = LONGITUD_CODIGO - (!editando && tipo ? prefijoDelTipo(tipo).length : 0);
+    if (!f.codigo_empleado.trim() && (editando || tipo)) e.codigo_empleado = editando ? 'Escribe el código de empleado.' : 'Escribe el código después del prefijo.';
+    else if (f.codigo_empleado.trim().length > maxCodigo) e.codigo_empleado = `Máximo ${maxCodigo} caracteres.`;
+    if (!tipo) e.tipo_personal_id = 'Elige el tipo de personal.';
     else if ((conCuenta || tieneCuenta) && !rolDelTipo(tipo)) {
         e.tipo_personal_id = 'Este tipo de personal no tiene rol de acceso: no puede tener cuenta.';
     }
@@ -73,11 +87,6 @@ function validar(f: Formulario, conCuenta: boolean, tieneCuenta: boolean, tipo: 
     if (conCuenta) {
         if (!f.email.trim()) e.email = 'Escribe el correo de la cuenta.';
         else if (!EMAIL.test(f.email.trim())) e.email = 'Escribe un correo válido.';
-        if (!f.password) e.password = 'Escribe una contraseña temporal.';
-        else if (f.password.length < 8) e.password = 'Mínimo 8 caracteres.';
-        else if (!/[a-z]/.test(f.password) || !/[A-Z]/.test(f.password) || !/\d/.test(f.password)) {
-            e.password = 'Debe tener al menos una minúscula, una mayúscula y un dígito.';
-        }
     }
     return e;
 }
@@ -90,7 +99,7 @@ function erroresDeApi(error: unknown): { campos: Errores; general: string | null
     if (error.code === 'REFERENCIA_INVALIDA') return { campos: { tipo_personal_id: error.message }, general: null };
     if (error.errors.length > 0) {
         const campos: Errores = {};
-        for (const { field, message } of error.errors) campos[field as keyof Formulario] ??= message;
+        for (const { field, message } of error.errors) campos[field as keyof Errores] ??= message;
         return { campos, general: null };
     }
     return { campos: {}, general: error.message };
@@ -165,6 +174,8 @@ export function PersonalFormDialog({
     const [intentado, setIntentado] = useState(false);
     const [general, setGeneral] = useState<string | null>(null);
     const [guardando, setGuardando] = useState(false);
+    const [cuentaCreada, setCuentaCreada] = useState<{ personal: Personal; password: string } | null>(null);
+    const [estadoCopia, setEstadoCopia] = useState('');
 
     useEffect(() => {
         if (!open) return;
@@ -173,10 +184,13 @@ export function PersonalFormDialog({
         setErrores({});
         setIntentado(false);
         setGeneral(null);
+        setCuentaCreada(null);
+        setEstadoCopia('');
     }, [open, personal]);
 
     const tipo = tipos?.find((t) => t.id === form.tipo_personal_id);
     const rol = rolDelTipo(tipo);
+    const prefijo = !editando && tipo ? prefijoDelTipo(tipo) : '';
     // Un tipo inactivo no se ofrece al dar de alta, pero se conserva si es el actual del empleado.
     const tiposVisibles = tipos?.filter((t) => t.activo || t.id === personal?.tipo.id) ?? [];
 
@@ -184,12 +198,12 @@ export function PersonalFormDialog({
         const siguiente = { ...form, ...parcial };
         setForm(siguiente);
         // Tras el primer intento de guardar, los errores se corrigen mientras se escribe.
-        if (intentado) setErrores(validar(siguiente, conCuenta, tieneCuenta, tipos?.find((t) => t.id === siguiente.tipo_personal_id)));
+        if (intentado) setErrores(validar(siguiente, conCuenta, tieneCuenta, tipos?.find((t) => t.id === siguiente.tipo_personal_id), editando));
     };
 
     const cambiarCuenta = (valor: boolean) => {
         setConCuenta(valor);
-        if (intentado) setErrores(validar(form, valor, tieneCuenta, tipo));
+        if (intentado) setErrores(validar(form, valor, tieneCuenta, tipo, editando));
     };
 
     const campo = (nombre: keyof Formulario) => ({
@@ -199,9 +213,10 @@ export function PersonalFormDialog({
     });
 
     async function guardar() {
+        if (guardando) return;
         setIntentado(true);
         setGeneral(null);
-        const encontrados = validar(form, conCuenta, tieneCuenta, tipo);
+        const encontrados = validar(form, conCuenta, tieneCuenta, tipo, editando);
         setErrores(encontrados);
         if (Object.keys(encontrados).length > 0) {
             document.getElementById(`${uid}-${Object.keys(encontrados)[0]}`)?.focus();
@@ -211,7 +226,7 @@ export function PersonalFormDialog({
         const datos = {
             nombres: form.nombres.trim(),
             apellidos: form.apellidos.trim(),
-            codigo_empleado: form.codigo_empleado.trim(),
+            codigo_empleado: prefijo + form.codigo_empleado.trim(),
             tipo_personal_id: form.tipo_personal_id,
             especialidad_id: form.especialidad_id || null,
             num_licencia: form.num_licencia.trim() || null,
@@ -227,8 +242,11 @@ export function PersonalFormDialog({
                 if (tieneCuenta && rol && rol !== personal.rol) body.rol = rol;
                 onSaved(await actualizarPersonal(personal.id, body), 'actualizado');
             } else {
-                const body: CrearPersonalBody = conCuenta ? { ...datos, email: form.email.trim(), password: form.password } : datos;
-                onSaved(await crearPersonal(body), 'creado');
+                const password = conCuenta ? generarPassword() : undefined;
+                const body: CrearPersonalBody = password ? { ...datos, email: form.email.trim(), password } : datos;
+                const creado = await crearPersonal(body);
+                if (password) setCuentaCreada({ personal: creado, password });
+                else onSaved(creado, 'creado');
             }
         } catch (error) {
             const { campos, general: mensaje } = erroresDeApi(error);
@@ -239,10 +257,54 @@ export function PersonalFormDialog({
         }
     }
 
+    if (cuentaCreada) {
+        const cerrar = () => {
+            setCuentaCreada(null);
+            onSaved(cuentaCreada.personal, 'creado');
+        };
+
+        async function copiar(password: string) {
+            try {
+                await navigator.clipboard.writeText(password);
+                setEstadoCopia('Contraseña copiada.');
+            } catch {
+                setEstadoCopia('Selecciona el texto para copiar la contraseña manualmente.');
+            }
+        }
+
+        return (
+            <Dialog
+                open={open}
+                onClose={cerrar}
+                title="Cuenta de acceso creada"
+                description={cuentaCreada.personal.email}
+                footer={<Button onClick={cerrar}>Listo</Button>}
+            >
+                <div className="grid gap-2">
+                    <Label htmlFor={`${uid}-password`}>Contraseña generada</Label>
+                    <div className="flex flex-wrap gap-2">
+                        <Input
+                            id={`${uid}-password`}
+                            className="flex-1 basis-56 font-mono"
+                            value={cuentaCreada.password}
+                            readOnly
+                            onFocus={(e) => e.currentTarget.select()}
+                        />
+                        <Button variant="outline" onClick={() => void copiar(cuentaCreada.password)}>Copiar</Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Copia la contraseña antes de cerrar. Solo se muestra aquí.</p>
+                    <p role="status" className="text-xs text-muted-foreground">{estadoCopia}</p>
+                </div>
+            </Dialog>
+        );
+    }
+
     return (
         <Dialog
             open={open}
-            onClose={onClose}
+            onClose={() => {
+                if (!guardando) onClose();
+            }}
             className="max-w-2xl"
             title={editando ? 'Editar personal' : 'Nuevo personal'}
             description={
@@ -290,10 +352,20 @@ export function PersonalFormDialog({
 
                 <div className="grid gap-4 sm:grid-cols-2">
                     <Campo id={`${uid}-nombres`} label="Nombres" error={errores.nombres}>
-                        <Input {...campo('nombres')} autoComplete="off" value={form.nombres} onChange={(e) => cambiar({ nombres: e.target.value })} />
+                        <Input
+                            {...campo('nombres')}
+                            autoComplete="off"
+                            value={form.nombres}
+                            onChange={(e) => cambiar({ nombres: editando ? e.target.value : capitalizarIniciales(e.target.value) })}
+                        />
                     </Campo>
                     <Campo id={`${uid}-apellidos`} label="Apellidos" error={errores.apellidos}>
-                        <Input {...campo('apellidos')} autoComplete="off" value={form.apellidos} onChange={(e) => cambiar({ apellidos: e.target.value })} />
+                        <Input
+                            {...campo('apellidos')}
+                            autoComplete="off"
+                            value={form.apellidos}
+                            onChange={(e) => cambiar({ apellidos: editando ? e.target.value : capitalizarIniciales(e.target.value) })}
+                        />
                     </Campo>
                     <Campo id={`${uid}-tipo_personal_id`} label="Tipo de personal" error={errores.tipo_personal_id}>
                         <Select
@@ -311,14 +383,29 @@ export function PersonalFormDialog({
                             ))}
                         </Select>
                     </Campo>
-                    <Campo id={`${uid}-codigo_empleado`} label="Código de empleado" error={errores.codigo_empleado}>
-                        <Input
-                            {...campo('codigo_empleado')}
-                            placeholder="EMP-0042"
-                            autoComplete="off"
-                            value={form.codigo_empleado}
-                            onChange={(e) => cambiar({ codigo_empleado: e.target.value })}
-                        />
+                    <Campo
+                        id={`${uid}-codigo_empleado`}
+                        label="Código de empleado"
+                        error={errores.codigo_empleado}
+                        hint={prefijo ? `Prefijo asignado: ${prefijo}` : undefined}
+                    >
+                        <div className="flex">
+                            {prefijo && (
+                                <span aria-hidden="true" className="flex items-center rounded-l-md border border-r-0 border-input bg-muted px-3 text-sm font-medium">
+                                    {prefijo}
+                                </span>
+                            )}
+                            <Input
+                                {...campo('codigo_empleado')}
+                                className={prefijo ? 'rounded-l-none' : undefined}
+                                placeholder={editando ? 'EMP-0042' : '0042'}
+                                autoComplete="off"
+                                disabled={!editando && !tipo}
+                                maxLength={editando ? undefined : LONGITUD_CODIGO - prefijo.length}
+                                value={form.codigo_empleado}
+                                onChange={(e) => cambiar({ codigo_empleado: editando ? e.target.value : e.target.value.toUpperCase() })}
+                            />
+                        </div>
                     </Campo>
                     <Campo id={`${uid}-especialidad_id`} label="Especialidad" optional error={errores.especialidad_id}>
                         <Select
@@ -399,7 +486,7 @@ export function PersonalFormDialog({
                                             {rol ? ROL_ETIQUETA[rol] : tipo ? 'este tipo no admite cuenta' : 'elige el tipo de personal'}
                                         </strong>
                                     </p>
-                                    <div className="grid gap-4 sm:grid-cols-2">
+                                    <div className="grid gap-2">
                                         <Campo id={`${uid}-email`} label="Correo" error={errores.email}>
                                             <Input
                                                 {...campo('email')}
@@ -410,20 +497,11 @@ export function PersonalFormDialog({
                                                 onChange={(e) => cambiar({ email: e.target.value })}
                                             />
                                         </Campo>
-                                        <Campo
-                                            id={`${uid}-password`}
-                                            label="Contraseña temporal"
-                                            error={errores.password}
-                                            hint="Mínimo 8 caracteres con mayúscula, minúscula y dígito."
-                                        >
-                                            <Input
-                                                {...campo('password')}
-                                                type="password"
-                                                autoComplete="new-password"
-                                                value={form.password}
-                                                onChange={(e) => cambiar({ password: e.target.value })}
-                                            />
-                                        </Campo>
+                                        {errores.password ? (
+                                            <p className="text-xs text-danger">{errores.password}</p>
+                                        ) : (
+                                            <p className="text-xs text-muted-foreground">La contraseña se generará automáticamente al registrar la cuenta.</p>
+                                        )}
                                     </div>
                                 </>
                             )}
