@@ -3,7 +3,6 @@
 
 export type EstadoLaboratorio = "pendiente" | "en_proceso" | "completado"
 export type EstadoAmbulancia = "disponible" | "en_servicio" | "en_mantenimiento"
-export type EstadoAviso = "vigente" | "programado" | "vencido"
 export type ResultadoServicio = "finalizado" | "rechazada" | "en_mantenimiento" | "no_disponible"
 
 export interface Paginado<T> {
@@ -81,14 +80,6 @@ export interface ServicioBitacora {
   despacho: string
   duracion: string | null
   resultado: ResultadoServicio
-}
-
-export interface Aviso {
-  id: string
-  titulo: string
-  publico: boolean
-  vigencia: string
-  estado: EstadoAviso
 }
 
 export interface Reportes {
