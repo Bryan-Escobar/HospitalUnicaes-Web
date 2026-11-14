@@ -4,8 +4,6 @@
 import { useDemoStore } from '@/store/useDemoStore';
 import type {
     AmbulanciaEstado,
-    Aviso,
-    EstadoAviso,
     InventarioResumen,
     MapaPlantas,
     Paginado,
@@ -121,18 +119,6 @@ export function opcionesBitacora() {
         tipos: [...new Set(db.bitacora.map((s) => s.tipo))].sort(),
         despachos: [...new Set(db.bitacora.map((s) => s.despacho))].sort(),
     };
-}
-
-export type FiltroAvisos = 'todos' | EstadoAviso | 'publicos' | 'internos';
-
-export function listarAvisos(filtro: FiltroAvisos): Promise<Aviso[]> {
-    const items = db.avisos.filter((a) => {
-        if (filtro === 'todos') return true;
-        if (filtro === 'publicos') return a.publico;
-        if (filtro === 'internos') return !a.publico;
-        return a.estado === filtro;
-    });
-    return responder(items, []);
 }
 
 export function obtenerReportes(): Promise<Reportes> {

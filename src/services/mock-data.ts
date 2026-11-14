@@ -3,7 +3,6 @@
 // (5 VIP + 6 semiprivadas = 17 camas, 1 ambulancia, estados exactos).
 import type {
     AmbulanciaEstado,
-    Aviso,
     InventarioResumen,
     MapaPlantas,
     Paciente,
@@ -188,13 +187,6 @@ export const bitacora: ServicioBitacora[] = [
     { id: 'b12', fecha: '1 oct', inicioFin: '06:40 – 07:30', tipo: 'Accidente de tránsito', paciente: 'Gabriela Aguilar', despacho: 'Karla Flores', duracion: '50 min', resultado: 'finalizado' },
     { id: 'b13', fecha: '1 oct', inicioFin: '02:10 – 02:55', tipo: 'Dolor abdominal', paciente: 'Fernando Hernández', despacho: 'Lucía Torres', duracion: '45 min', resultado: 'finalizado' },
     { id: 'b14', fecha: '1 oct', inicioFin: '00:30 – 01:20', tipo: 'Dificultad respiratoria', paciente: 'Patricia Martínez', despacho: 'Óscar Ramos', duracion: '50 min', resultado: 'finalizado' },
-];
-
-export const avisos: Aviso[] = [
-    { id: 'a1', titulo: 'Horario de visitas', publico: true, vigencia: '19 oct – 30 nov', estado: 'vigente' },
-    { id: 'a2', titulo: 'Reunión clínica mensual', publico: false, vigencia: '21 oct – 23 oct', estado: 'vigente' },
-    { id: 'a3', titulo: 'Jornada de vacunación', publico: true, vigencia: '2 nov – 6 nov', estado: 'programado' },
-    { id: 'a4', titulo: 'Mantenimiento de ascensores', publico: false, vigencia: '5 oct – 7 oct', estado: 'vencido' },
 ];
 
 const OCUPACION_30_DIAS = [11, 12, 12, 13, 12, 14, 13, 12, 11, 12, 13, 14, 13, 12, 12, 13, 14, 13, 12, 11, 12, 13, 13, 12, 14, 13, 12, 13, 12, 12];

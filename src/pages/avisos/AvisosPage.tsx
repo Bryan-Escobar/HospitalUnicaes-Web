@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Globe, Lock, Megaphone, Plus } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Globe, Lock, Megaphone, Plus, SearchX } from 'lucide-react';
 
 import { PageHeader, Toolbar } from '@/components/layout/AdminLayout';
 import { Alert } from '@/components/ui/alert';
@@ -8,178 +8,263 @@ import { Button } from '@/components/ui/button';
 import { DataTable, type Column } from '@/components/ui/data-table';
 import { Dialog } from '@/components/ui/dialog';
 import { FilterChip } from '@/components/ui/filter-chip';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { SegmentedControl } from '@/components/ui/segmented-control';
+import { Pagination } from '@/components/ui/pagination';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { useResource } from '@/hooks/useResource';
-import { listarAvisos, type FiltroAvisos } from '@/services/admin.service';
-import type { Aviso } from '@/types/admin.types';
+import { ApiError } from '@/lib/api';
+import { fechaHoraCorta } from '@/lib/fechas-hospital';
+import { eliminarAviso, listarAvisos, PAGE_SIZE } from '@/services/avisos.service';
+import type { Aviso, FiltroAvisos, FiltroVigencia, FiltroVisibilidad } from '@/types/avisos.types';
+import { AvisoFormDialog } from './AvisoFormDialog';
 
-const FILTROS: { value: FiltroAvisos; label: string }[] = [
+const VIGENCIAS: { value: FiltroVigencia; label: string }[] = [
     { value: 'todos', label: 'Todos' },
     { value: 'vigente', label: 'Vigentes' },
     { value: 'programado', label: 'Programados' },
     { value: 'vencido', label: 'Vencidos' },
+];
+
+const VISIBILIDADES: { value: FiltroVisibilidad; label: string }[] = [
+    { value: 'todos', label: 'Todos' },
     { value: 'publicos', label: 'Públicos' },
     { value: 'internos', label: 'Internos' },
 ];
 
-const columnas: Column<Aviso>[] = [
-    { header: 'Título', cell: (a) => <span className="font-semibold">{a.titulo}</span>, skeleton: 'w-48', className: 'w-[36%]' },
-    {
-        header: 'Visibilidad',
-        cell: (a) =>
-            a.publico ? (
-                <Badge tone="primary">
-                    <Globe className="size-3" aria-hidden /> Público
-                </Badge>
-            ) : (
-                <Badge>
-                    <Lock className="size-3" aria-hidden /> Interno
-                </Badge>
-            ),
-    },
-    { header: 'Vigencia', cell: (a) => a.vigencia, skeleton: 'w-28' },
-    { header: 'Estado', cell: (a) => <StatusBadge estado={a.estado} /> },
-    {
-        header: '',
-        className: 'text-right w-36',
-        cell: () => (
-            <span className="inline-flex items-center gap-1.5">
-                <Button variant="link" size="sm">
-                    Editar
-                </Button>
-                <span aria-hidden className="text-muted-foreground">·</span>
-                <Button variant="link-danger" size="sm">
-                    Eliminar
-                </Button>
+function Vigencia({ aviso }: { aviso: Aviso }) {
+    return (
+        <span className="grid gap-0.5 text-[13px] whitespace-nowrap">
+            <span>
+                <span className="text-muted-foreground">Desde </span>
+                {fechaHoraCorta(aviso.fecha_publicacion)}
             </span>
-        ),
-    },
-];
+            <span>
+                <span className="text-muted-foreground">Hasta </span>
+                {aviso.fecha_expiracion ? fechaHoraCorta(aviso.fecha_expiracion) : 'sin expiración'}
+            </span>
+        </span>
+    );
+}
 
-function NuevoAvisoDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
-    const [visibilidad, setVisibilidad] = useState<'publico' | 'interno'>('publico');
+function columnas(acciones: { editar: (a: Aviso) => void; eliminar: (a: Aviso) => void }): Column<Aviso>[] {
+    return [
+        {
+            header: 'Aviso',
+            skeleton: 'w-56',
+            className: 'w-[38%]',
+            cell: (a) => (
+                <>
+                    <span className="block font-semibold">{a.titulo}</span>
+                    <span className="line-clamp-1 text-xs text-muted-foreground">{a.contenido}</span>
+                </>
+            ),
+        },
+        {
+            header: 'Visibilidad',
+            cell: (a) =>
+                a.es_publico ? (
+                    <Badge tone="primary">
+                        <Globe className="size-3" aria-hidden /> Público
+                    </Badge>
+                ) : (
+                    <Badge>
+                        <Lock className="size-3" aria-hidden /> Interno
+                    </Badge>
+                ),
+        },
+        { header: 'Vigencia', cell: (a) => <Vigencia aviso={a} />, skeleton: 'w-40' },
+        { header: 'Estado', cell: (a) => <StatusBadge estado={a.vigencia} /> },
+        {
+            header: '',
+            className: 'text-right w-36',
+            cell: (a) => (
+                <span className="inline-flex items-center gap-1.5">
+                    <Button variant="link" size="sm" onClick={() => acciones.editar(a)} aria-label={`Editar «${a.titulo}»`}>
+                        Editar
+                    </Button>
+                    <span aria-hidden className="text-muted-foreground">
+                        ·
+                    </span>
+                    <Button variant="link-danger" size="sm" onClick={() => acciones.eliminar(a)} aria-label={`Eliminar «${a.titulo}»`}>
+                        Eliminar
+                    </Button>
+                </span>
+            ),
+        },
+    ];
+}
+
+function mensajeDeError(error: unknown) {
+    return error instanceof ApiError ? error.message : 'No se pudo completar la acción. Inténtalo de nuevo.';
+}
+
+function EliminarDialog({ aviso, onClose, onDone }: { aviso: Aviso | null; onClose: () => void; onDone: (a: Aviso) => void }) {
+    const [enviando, setEnviando] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => setError(null), [aviso]);
+
+    async function confirmar() {
+        if (!aviso) return;
+        setEnviando(true);
+        try {
+            await eliminarAviso(aviso.id);
+            onDone(aviso);
+        } catch (e) {
+            setError(mensajeDeError(e));
+        } finally {
+            setEnviando(false);
+        }
+    }
+
     return (
         <Dialog
-            open={open}
+            open={aviso !== null}
             onClose={onClose}
-            title="Nuevo aviso"
-            description="Los avisos públicos se ven sin iniciar sesión en la app iOS."
+            title="Eliminar aviso"
+            description={aviso?.titulo}
             footer={
                 <>
-                    <Button variant="outline" onClick={onClose}>
+                    <Button variant="outline" onClick={onClose} disabled={enviando}>
                         Cancelar
                     </Button>
-                    <Button type="submit" form="form-aviso">
-                        Publicar aviso
+                    <Button variant="destructive" onClick={() => void confirmar()} disabled={enviando}>
+                        {enviando ? 'Eliminando…' : 'Eliminar'}
                     </Button>
                 </>
             }
         >
-            <form
-                id="form-aviso"
-                className="grid gap-4"
-                onSubmit={(e) => {
-                    e.preventDefault();
-                    onClose();
-                }}
-            >
-                <div className="grid gap-2">
-                    <Label htmlFor="aviso-titulo">Título</Label>
-                    <Input id="aviso-titulo" required placeholder="Ej. Horario de visitas" />
-                </div>
-                <div className="grid gap-2">
-                    <Label htmlFor="aviso-contenido">Contenido</Label>
-                    <textarea
-                        id="aviso-contenido"
-                        required
-                        rows={4}
-                        className="rounded-md border border-input bg-card px-3 py-2 text-sm outline-none focus-visible:border-primary"
-                        placeholder="Horario de visitas: 2:00–6:00 p. m."
-                    />
-                </div>
-                <div className="grid gap-2">
-                    <span className="text-[13px] font-medium">Visibilidad</span>
-                    <SegmentedControl
-                        label="Visibilidad"
-                        value={visibilidad}
-                        onChange={setVisibilidad}
-                        options={[
-                            { value: 'publico', label: 'Público' },
-                            { value: 'interno', label: 'Interno' },
-                        ]}
-                    />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="grid gap-2">
-                        <Label htmlFor="aviso-desde">Vigente desde</Label>
-                        <Input id="aviso-desde" type="date" required />
-                    </div>
-                    <div className="grid gap-2">
-                        <Label htmlFor="aviso-hasta">Hasta</Label>
-                        <Input id="aviso-hasta" type="date" />
-                    </div>
-                </div>
-                {visibilidad === 'publico' && (
-                    <Alert tone="warning">No incluyas nombres, habitaciones ni datos de pacientes en un aviso público.</Alert>
-                )}
-            </form>
+            <div className="grid gap-3 text-sm">
+                {error && <Alert tone="danger">{error}</Alert>}
+                <p>
+                    El aviso se borra definitivamente
+                    {aviso?.es_publico && aviso.vigencia === 'vigente' ? ' y deja de mostrarse en la información pública' : ''}. No se
+                    puede deshacer.
+                </p>
+                <p className="text-muted-foreground">Si solo quieres que deje de mostrarse, edítalo y ponle una fecha de expiración.</p>
+            </div>
         </Dialog>
     );
 }
 
-// WEB-11 Avisos: avisos públicos (app iOS sin sesión) e internos.
+// WEB-11 Avisos (HUNI-77): avisos generales. Los públicos vigentes son los que muestra la información
+// pública sin sesión (/api/publico/estado); los internos solo los ve el personal.
 export default function AvisosPage() {
-    const [filtro, setFiltro] = useState<FiltroAvisos>('todos');
-    const [nuevo, setNuevo] = useState(false);
+    const [filtro, setFiltro] = useState<FiltroAvisos>({ vigencia: 'todos', visibilidad: 'todos', page: 1 });
     const avisos = useResource(() => listarAvisos(filtro), [filtro]);
+    const [formulario, setFormulario] = useState<{ abierto: boolean; aviso: Aviso | null }>({ abierto: false, aviso: null });
+    const [porEliminar, setPorEliminar] = useState<Aviso | null>(null);
+    const [mensaje, setMensaje] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (!mensaje) return;
+        const id = setTimeout(() => setMensaje(null), 5000);
+        return () => clearTimeout(id);
+    }, [mensaje]);
+
+    const cambiar = (parcial: Partial<FiltroAvisos>) => setFiltro((f) => ({ ...f, ...parcial, page: 1 }));
+    const hayFiltros = filtro.vigencia !== 'todos' || filtro.visibilidad !== 'todos';
+    const nuevo = () => setFormulario({ abierto: true, aviso: null });
+    const botonNuevo = (
+        <Button onClick={nuevo}>
+            <Plus /> Nuevo aviso
+        </Button>
+    );
 
     return (
         <>
             <PageHeader
                 title="Avisos"
-                subtitle="Los avisos públicos se muestran sin sesión en la app iOS. Nunca incluyen datos de pacientes."
-                actions={
-                    <Button onClick={() => setNuevo(true)}>
-                        <Plus /> Nuevo aviso
-                    </Button>
-                }
+                subtitle="Los avisos públicos vigentes se muestran sin sesión en las apps. Nunca incluyen datos de pacientes."
+                actions={botonNuevo}
             />
             <Toolbar>
-                <div role="group" aria-label="Filtrar avisos" className="flex flex-wrap gap-2">
-                    {FILTROS.map((f) => (
-                        <FilterChip key={f.value} selected={filtro === f.value} onClick={() => setFiltro(f.value)}>
-                            {f.label}
+                <div role="group" aria-label="Filtrar por vigencia" className="flex flex-wrap gap-2">
+                    {VIGENCIAS.map((v) => (
+                        <FilterChip key={v.value} selected={filtro.vigencia === v.value} onClick={() => cambiar({ vigencia: v.value })}>
+                            {v.label}
+                        </FilterChip>
+                    ))}
+                </div>
+                <span aria-hidden className="hidden h-6 w-px bg-border sm:block" />
+                <div role="group" aria-label="Filtrar por visibilidad" className="flex flex-wrap gap-2">
+                    {VISIBILIDADES.map((v) => (
+                        <FilterChip key={v.value} selected={filtro.visibilidad === v.value} onClick={() => cambiar({ visibilidad: v.value })}>
+                            {v.label}
                         </FilterChip>
                     ))}
                 </div>
             </Toolbar>
+            {mensaje && (
+                <Alert
+                    tone="info"
+                    className="mb-4"
+                    action={
+                        <Button size="sm" variant="ghost" onClick={() => setMensaje(null)}>
+                            Cerrar
+                        </Button>
+                    }
+                >
+                    {mensaje}
+                </Alert>
+            )}
             <DataTable
                 label="Avisos"
-                columns={columnas}
-                rows={avisos.data}
+                columns={columnas({ editar: (a) => setFormulario({ abierto: true, aviso: a }), eliminar: setPorEliminar })}
+                rows={avisos.data?.items}
                 status={avisos.status}
                 rowKey={(a) => a.id}
                 onRetry={avisos.refetch}
                 skeletonRows={4}
-                empty={{
-                    icon: Megaphone,
-                    title: filtro === 'todos' ? 'No hay avisos publicados' : 'No hay avisos en este filtro',
-                    description:
-                        filtro === 'todos'
-                            ? 'Publica horarios de visita, jornadas o comunicados internos para el personal.'
-                            : 'Prueba con otro filtro.',
-                    action:
-                        filtro === 'todos' ? (
-                            <Button onClick={() => setNuevo(true)}>
-                                <Plus /> Nuevo aviso
-                            </Button>
-                        ) : undefined,
+                empty={
+                    hayFiltros
+                        ? { icon: SearchX, title: 'No hay avisos con estos filtros', description: 'Prueba con otro filtro.' }
+                        : {
+                              icon: Megaphone,
+                              title: 'No hay avisos publicados',
+                              description: 'Publica horarios de visita, jornadas o comunicados internos para el personal.',
+                              action: botonNuevo,
+                          }
+                }
+                footer={
+                    avisos.data && (
+                        <Pagination
+                            page={filtro.page}
+                            pageSize={PAGE_SIZE}
+                            total={avisos.data.paginacion.total}
+                            onPageChange={(page) => setFiltro((f) => ({ ...f, page }))}
+                        />
+                    )
+                }
+            />
+            <AvisoFormDialog
+                open={formulario.abierto}
+                aviso={formulario.aviso}
+                onClose={() => setFormulario((f) => ({ ...f, abierto: false }))}
+                onSaved={(a, accion) => {
+                    setFormulario((f) => ({ ...f, abierto: false }));
+                    const estado =
+                        a.vigencia === 'programado'
+                            ? ' Quedó programado.'
+                            : a.vigencia === 'vencido'
+                              ? ' Ya está vencido, no se mostrará.'
+                              : a.es_publico
+                                ? ' Ya se muestra en la información pública.'
+                                : ' Ya lo ve el personal.';
+                    setMensaje(`${accion === 'creado' ? 'Se publicó' : 'Se guardó'} «${a.titulo}».${estado}`);
+                    avisos.refetch();
                 }}
             />
-            <NuevoAvisoDialog open={nuevo} onClose={() => setNuevo(false)} />
+            <EliminarDialog
+                aviso={porEliminar}
+                onClose={() => setPorEliminar(null)}
+                onDone={(a) => {
+                    setPorEliminar(null);
+                    setMensaje(`Se eliminó «${a.titulo}».`);
+                    // Si era el último de la página, vuelve a la anterior.
+                    if (avisos.data?.items.length === 1 && filtro.page > 1) setFiltro((f) => ({ ...f, page: f.page - 1 }));
+                    else avisos.refetch();
+                }}
+            />
         </>
     );
 }
