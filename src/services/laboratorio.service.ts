@@ -16,37 +16,37 @@ import * as demo from './laboratorio.mock';
 export const ESTADOS_LABORATORIO = ['pendiente', 'en_proceso', 'completado'] as const;
 
 const persona = 'id,nombres,apellidos';
-const relacionesConsulta = `doctor:personal!consultas_doctor_id_fkey(${persona}),expediente:expedientes(paciente:pacientes(${persona}))`;
-const examen = 'id,examen:examenes_catalogo(nombre)';
 const vacio = { items: [], total: 0 };
 
 // La sesión del administrador accede al listado mediante las políticas RLS de laboratorio.
 function consultaOrdenes(rango: RangoLaboratorio, soloConteo = false) {
-    const terminos = terminosLaboratorio(rango.busqueda);
-    const columnas = soloConteo ? ['id'] : [
-        'id,fecha_solicitud,estado',
-        `examenes:orden_examenes(${examen})`,
-    ];
-    if (!soloConteo) columnas.push(`consulta:consultas!inner(${relacionesConsulta})`);
-    else if (rango.doctor) columnas.push('consulta:consultas!inner(doctor_id)');
-    // Las relaciones externas permiten aceptar una coincidencia por cualquiera de las dos ramas.
-    if (terminos.length) {
-        columnas.push(
-            'por_paciente:consultas(expediente:expedientes!inner(paciente:pacientes!inner(id)))',
-            'por_examen:orden_examenes(examen:examenes_catalogo!inner(id))',
-        );
+    const terminosPaciente = terminosLaboratorio(rango.paciente);
+    const terminosExamen = terminosLaboratorio(rango.examen);
+    const pacienteInner = terminosPaciente.length ? '!inner' : '';
+    const examenInner = terminosExamen.length ? '!inner' : '';
+    const columnas = [soloConteo ? 'id' : 'id,fecha_solicitud,estado'];
+    if (!soloConteo || rango.doctor || pacienteInner) {
+        const consulta = soloConteo ? ['doctor_id'] : [`doctor:personal!consultas_doctor_id_fkey(${persona})`];
+        if (!soloConteo || pacienteInner) {
+            consulta.push(`expediente:expedientes${pacienteInner}(paciente:pacientes${pacienteInner}(${persona}))`);
+        }
+        columnas.push(`consulta:consultas!inner(${consulta.join(',')})`);
+    }
+    if (!soloConteo || examenInner) {
+        columnas.push(`examenes:orden_examenes${examenInner}(id,examen:examenes_catalogo${examenInner}(nombre))`);
     }
 
     const query = supabase.from('ordenes_laboratorio').select(columnas.join(','), { count: 'exact', head: soloConteo });
     if (rango.doctor) query.eq('consulta.doctor_id', rango.doctor);
     if (rango.desde) query.gte('fecha_solicitud', instanteHospital(rango.desde));
     if (rango.hasta) query.lt('fecha_solicitud', instanteHospital(sumarDias(rango.hasta, 1)));
-    for (const termino of terminos) {
+    for (const termino of terminosPaciente) {
         const patron = `*${termino}*`;
-        query.or(`nombres.ilike.${patron},apellidos.ilike.${patron}`, { referencedTable: 'por_paciente.expediente.paciente' });
-        query.ilike('por_examen.examen.nombre', patron);
+        query.or(`nombres.ilike.${patron},apellidos.ilike.${patron}`, { referencedTable: 'consulta.expediente.paciente' });
     }
-    if (terminos.length) query.or('por_paciente.not.is.null,por_examen.not.is.null');
+    for (const termino of terminosExamen) {
+        query.ilike('examenes.examen.nombre', `*${termino}*`);
+    }
     return query;
 }
 

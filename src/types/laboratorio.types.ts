@@ -10,7 +10,8 @@ export interface RangoLaboratorio {
     doctor: string;
     desde: string;
     hasta: string;
-    busqueda: string;
+    paciente: string;
+    examen: string;
 }
 
 export interface FiltroLaboratorio extends RangoLaboratorio {
