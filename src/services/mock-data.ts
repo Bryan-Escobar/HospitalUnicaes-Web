@@ -2,12 +2,10 @@
 // cuando estén disponibles los endpoints; respetan las reglas de context.md §3
 // (5 VIP + 6 semiprivadas = 17 camas, 1 ambulancia, estados exactos).
 import type {
-    AmbulanciaEstado,
     MapaPlantas,
     Paciente,
     PerfilAdmin,
     Reportes,
-    ServicioBitacora,
 } from '@/types/admin.types';
 
 export const perfil: PerfilAdmin = {
@@ -105,38 +103,6 @@ export const mapa: MapaPlantas = {
         },
     ],
 };
-
-export const ambulancia: AmbulanciaEstado = {
-    estado: 'en_servicio',
-    desde: '10:14',
-    servicio: {
-        paciente: 'Luis Martínez',
-        ubicacion: 'Col. Escalón, San Salvador',
-        despachadaPor: 'Karla Flores (Android) · 10:14',
-        tipoEmergencia: 'Dolor de pecho',
-        solicitada: '10:12 desde la app iOS',
-        conductor: 'Raúl Campos',
-    },
-    solicitudesPendientes: [],
-};
-
-// 14 servicios del 01/10 al 21/10 (WEB-10)
-export const bitacora: ServicioBitacora[] = [
-    { id: 'b1', fecha: '21 oct', inicioFin: '10:14 – 11:02', tipo: 'Dolor de pecho', paciente: 'Luis Martínez', despacho: 'Karla Flores', duracion: '48 min', resultado: 'finalizado' },
-    { id: 'b2', fecha: '19 oct', inicioFin: '22:40 – 23:35', tipo: 'Accidente de tránsito', paciente: 'María López', despacho: 'Óscar Ramos', duracion: '55 min', resultado: 'finalizado' },
-    { id: 'b3', fecha: '18 oct', inicioFin: '07:10', tipo: 'Dificultad respiratoria', paciente: 'José Díaz', despacho: 'Karla Flores', duracion: null, resultado: 'rechazada' },
-    { id: 'b4', fecha: '15 oct', inicioFin: '08:00 – 12:00', tipo: 'Mantenimiento preventivo', paciente: null, despacho: 'Rosa Guzmán', duracion: '4 h', resultado: 'en_mantenimiento' },
-    { id: 'b5', fecha: '12 oct', inicioFin: '16:20 – 17:05', tipo: 'Caída', paciente: 'Ana Vega', despacho: 'Óscar Ramos', duracion: '45 min', resultado: 'finalizado' },
-    { id: 'b6', fecha: '9 oct', inicioFin: '03:15 – 04:10', tipo: 'Dolor abdominal', paciente: 'Tomás Mora', despacho: 'Lucía Torres', duracion: '55 min', resultado: 'finalizado' },
-    { id: 'b7', fecha: '6 oct', inicioFin: '12:00', tipo: 'Otro', paciente: 'Carla Ríos', despacho: 'Karla Flores', duracion: null, resultado: 'no_disponible' },
-    { id: 'b8', fecha: '4 oct', inicioFin: '18:30 – 19:20', tipo: 'Accidente', paciente: 'Pedro Alas', despacho: 'Óscar Ramos', duracion: '50 min', resultado: 'finalizado' },
-    { id: 'b9', fecha: '2 oct', inicioFin: '09:45 – 10:30', tipo: 'Dificultad respiratoria', paciente: 'Rosa Méndez', despacho: 'Karla Flores', duracion: '45 min', resultado: 'finalizado' },
-    { id: 'b10', fecha: '1 oct', inicioFin: '14:10 – 15:00', tipo: 'Dolor de pecho', paciente: 'Mario Ruiz', despacho: 'Lucía Torres', duracion: '50 min', resultado: 'finalizado' },
-    { id: 'b11', fecha: '1 oct', inicioFin: '08:20 – 09:05', tipo: 'Caída', paciente: 'Elena Cruz', despacho: 'Óscar Ramos', duracion: '45 min', resultado: 'finalizado' },
-    { id: 'b12', fecha: '1 oct', inicioFin: '06:40 – 07:30', tipo: 'Accidente de tránsito', paciente: 'Gabriela Aguilar', despacho: 'Karla Flores', duracion: '50 min', resultado: 'finalizado' },
-    { id: 'b13', fecha: '1 oct', inicioFin: '02:10 – 02:55', tipo: 'Dolor abdominal', paciente: 'Fernando Hernández', despacho: 'Lucía Torres', duracion: '45 min', resultado: 'finalizado' },
-    { id: 'b14', fecha: '1 oct', inicioFin: '00:30 – 01:20', tipo: 'Dificultad respiratoria', paciente: 'Patricia Martínez', despacho: 'Óscar Ramos', duracion: '50 min', resultado: 'finalizado' },
-];
 
 const OCUPACION_30_DIAS = [11, 12, 12, 13, 12, 14, 13, 12, 11, 12, 13, 14, 13, 12, 12, 13, 14, 13, 12, 11, 12, 13, 13, 12, 14, 13, 12, 13, 12, 12];
 
