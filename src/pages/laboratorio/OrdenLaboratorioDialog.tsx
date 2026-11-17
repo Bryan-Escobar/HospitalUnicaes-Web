@@ -1,12 +1,12 @@
 import { useRef, useState } from 'react';
-import { Download } from 'lucide-react';
+import { Download, Eye } from 'lucide-react';
 
 import { ResourceView } from '@/components/ResourceView';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { useResource } from '@/hooks/useResource';
-import { obtenerOrden, obtenerUrlDescargaResultado } from '@/services/laboratorio.service';
+import { obtenerOrden, obtenerUrlDescargaResultado, obtenerUrlResultado } from '@/services/laboratorio.service';
 import type { EstadoLaboratorio } from '@/types/admin.types';
 import type { DetalleOrdenLaboratorio, PersonaLaboratorio } from '@/types/laboratorio.types';
 import { fechaHoraLaboratorio, nombreCompleto } from './formato-laboratorio';
@@ -71,6 +71,55 @@ function DescargarResultado({ ordenId, examen }: {
     );
 }
 
+function VistaResultado({ ordenId, examen, tipo }: {
+    ordenId: string;
+    examen: DetalleOrdenLaboratorio['examenes'][number];
+    tipo: 'pdf' | 'imagen';
+}) {
+    const [url, setUrl] = useState<string>();
+    const [cargando, setCargando] = useState(false);
+    const [error, setError] = useState(false);
+    const nombre = examen.examen.nombre;
+    const texto = tipo === 'pdf' ? 'Ver PDF' : 'Ver imagen';
+
+    async function abrir() {
+        setCargando(true);
+        setError(false);
+        try {
+            setUrl((await obtenerUrlResultado(ordenId, examen.id)).href);
+        } catch {
+            setError(true);
+        } finally {
+            setCargando(false);
+        }
+    }
+
+    return (
+        <>
+            <Button type="button" variant="outline" size="sm" disabled={cargando}
+                aria-label={`${url ? 'Ocultar vista' : texto} de ${nombre}`}
+                onClick={() => url ? setUrl(undefined) : void abrir()}>
+                <Eye aria-hidden="true" />
+                {cargando ? 'Cargando…' : url ? 'Ocultar vista' : texto}
+            </Button>
+            {error && <p role="alert" className="text-xs text-danger">No se pudo abrir el adjunto. Intenta de nuevo.</p>}
+            {url && (tipo === 'imagen' ? (
+                <img src={url} alt={`Resultado de ${nombre}`} referrerPolicy="no-referrer"
+                    className="max-h-[60dvh] max-w-full rounded-md object-contain"
+                    onError={() => { setUrl(undefined); setError(true); }} />
+            ) : (
+                <div className="space-y-2">
+                    <iframe src={url} title={`PDF de ${nombre}`} referrerPolicy="no-referrer"
+                        className="h-[55dvh] w-full rounded-md border border-border" />
+                    <Button asChild variant="link" size="sm">
+                        <a href={url} target="_blank" rel="noopener noreferrer">Abrir PDF en otra pestaña</a>
+                    </Button>
+                </div>
+            ))}
+        </>
+    );
+}
+
 function OrdenDetalle({ orden }: { orden: DetalleOrdenLaboratorio }) {
     const personas: [string, PersonaLaboratorio][] = [
         ['Paciente', orden.consulta.expediente.paciente],
@@ -115,7 +164,14 @@ function OrdenDetalle({ orden }: { orden: DetalleOrdenLaboratorio }) {
                                     {examen.examen.nombre}
                                     <StatusBadge estado={examen.estado} />
                                 </div>
-                                {examen.resultado?.tiene_archivo && <DescargarResultado ordenId={orden.id} examen={examen} />}
+                                {examen.resultado?.tiene_archivo && (
+                                    <div className="space-y-2">
+                                        {(examen.resultado.tipo_archivo === 'pdf' || examen.resultado.tipo_archivo === 'imagen') && (
+                                            <VistaResultado ordenId={orden.id} examen={examen} tipo={examen.resultado.tipo_archivo} />
+                                        )}
+                                        <DescargarResultado ordenId={orden.id} examen={examen} />
+                                    </div>
+                                )}
                             </li>
                         ))}
                     </ul>

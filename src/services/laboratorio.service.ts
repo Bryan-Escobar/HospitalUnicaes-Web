@@ -110,11 +110,15 @@ export async function obtenerOrden(id: string): Promise<DetalleOrdenLaboratorio 
     return { ...orden, consulta: { doctor, expediente: { paciente } } };
 }
 
-export async function obtenerUrlDescargaResultado(ordenId: string, examenId: string): Promise<string> {
+export async function obtenerUrlResultado(ordenId: string, examenId: string): Promise<URL> {
     const { url } = await apiFetch<{ url: string }>(
         `/laboratorio/ordenes/${ordenId}/examenes/${examenId}/resultado/archivo`,
     );
-    const descarga = new URL(url);
+    return new URL(url);
+}
+
+export async function obtenerUrlDescargaResultado(ordenId: string, examenId: string): Promise<string> {
+    const descarga = await obtenerUrlResultado(ordenId, examenId);
     descarga.searchParams.set('download', '');
     return descarga.href;
 }
