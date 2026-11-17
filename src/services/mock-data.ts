@@ -2,7 +2,6 @@
 // cuando estén disponibles los endpoints; respetan las reglas de context.md §3
 // (5 VIP + 6 semiprivadas = 17 camas, 1 ambulancia, estados exactos).
 import type {
-    MapaPlantas,
     Paciente,
     PerfilAdmin,
     Reportes,
@@ -74,35 +73,6 @@ export const pacientes: Paciente[] = [
         };
     }),
 ];
-
-export const mapa: MapaPlantas = {
-    ultimoCambio: 'HAB-202 · B pasó a Ocupada (asignada desde Android por Karla Flores).',
-    plantas: [
-        {
-            numero: 3,
-            nombre: 'VIP',
-            habitaciones: [
-                { codigo: 'VIP-301', camas: [{ cama: null, paciente: 'J. Ortiz' }] },
-                { codigo: 'VIP-302', camas: [{ cama: null, paciente: 'R. Méndez' }] },
-                { codigo: 'VIP-303', camas: [{ cama: null, paciente: null }] },
-                { codigo: 'VIP-304', camas: [{ cama: null, paciente: 'F. Luna' }] },
-                { codigo: 'VIP-305', camas: [{ cama: null, paciente: null }] },
-            ],
-        },
-        {
-            numero: 2,
-            nombre: 'semiprivadas',
-            habitaciones: [
-                { codigo: 'HAB-201', camas: [{ cama: 'A', paciente: 'L. Gómez' }, { cama: 'B', paciente: 'J. Díaz' }] },
-                { codigo: 'HAB-202', camas: [{ cama: 'A', paciente: 'R. Paz' }, { cama: 'B', paciente: 'M. López' }] },
-                { codigo: 'HAB-203', camas: [{ cama: 'A', paciente: 'C. Ríos' }, { cama: 'B', paciente: null }] },
-                { codigo: 'HAB-204', camas: [{ cama: 'A', paciente: 'L. Martínez' }, { cama: 'B', paciente: 'A. Vega' }] },
-                { codigo: 'HAB-205', camas: [{ cama: 'A', paciente: 'E. Lara' }, { cama: 'B', paciente: null }] },
-                { codigo: 'HAB-206', camas: [{ cama: 'A', paciente: 'T. Mora' }, { cama: 'B', paciente: null }] },
-            ],
-        },
-    ],
-};
 
 const OCUPACION_30_DIAS = [11, 12, 12, 13, 12, 14, 13, 12, 11, 12, 13, 14, 13, 12, 12, 13, 14, 13, 12, 11, 12, 13, 13, 12, 14, 13, 12, 13, 12, 12];
 

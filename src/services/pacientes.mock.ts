@@ -39,7 +39,9 @@ export function listarPacientes(filtro: FiltroPacientes, porPagina: number) {
     });
     resultados.sort((a, b) => a.apellidos.localeCompare(b.apellidos, 'es-SV') || a.nombres.localeCompare(b.nombres, 'es-SV'));
     const items: PacienteListado[] = resultados.slice((filtro.page - 1) * porPagina, filtro.page * porPagina)
-        .map(({ id, nombres, apellidos, activo, hospitalizaciones }) => ({ id, nombres, apellidos, activo, hospitalizaciones }));
+        .map(({ id, nombres, apellidos, activo, documento_identidad, hospitalizaciones }) => ({
+            id, nombres, apellidos, activo, documento_identidad, hospitalizaciones,
+        }));
     return { items, total: resultados.length };
 }
 

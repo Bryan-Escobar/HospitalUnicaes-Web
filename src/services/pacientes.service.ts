@@ -8,8 +8,8 @@ import * as demo from './pacientes.mock';
 export const PACIENTES_POR_PAGINA = 10;
 export const CITAS_POR_PAGINA = 5;
 
-const columnasListado = 'id,nombres,apellidos,activo,hospitalizaciones(camas(codigo,habitaciones(codigo,planta)))';
-const columnasFicha = `${columnasListado},documento_identidad,telefono,fecha_nacimiento,sexo,direccion,contacto_emergencia,telefono_emergencia,expedientes(numero_expediente)`;
+const columnasListado = 'id,nombres,apellidos,activo,documento_identidad,hospitalizaciones(camas(codigo,habitaciones(codigo,planta)))';
+const columnasFicha = `${columnasListado},telefono,fecha_nacimiento,sexo,direccion,contacto_emergencia,telefono_emergencia,expedientes(numero_expediente)`;
 const vacio = { items: [], total: 0 };
 
 // Las consultas usan la sesión del usuario y las políticas RLS de las tablas privadas.

@@ -18,6 +18,7 @@ export interface PacienteListado {
     nombres: string;
     apellidos: string;
     activo: boolean;
+    documento_identidad?: string | null;
     hospitalizaciones: HabitacionActual[];
 }
 

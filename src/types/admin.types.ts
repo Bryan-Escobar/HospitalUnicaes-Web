@@ -19,27 +19,6 @@ export interface Paciente {
   medico: string
 }
 
-export interface Cama {
-  cama: "A" | "B" | null
-  paciente: string | null
-}
-
-export interface Habitacion {
-  codigo: string
-  camas: Cama[]
-}
-
-export interface Planta {
-  numero: 2 | 3
-  nombre: string
-  habitaciones: Habitacion[]
-}
-
-export interface MapaPlantas {
-  plantas: Planta[]
-  ultimoCambio: string | null
-}
-
 export interface Reportes {
   ocupacionHistorica: { dia: string; ocupadas: number }[]
   ambulanciaPorSemana: { semana: string; servicios: number }[]
