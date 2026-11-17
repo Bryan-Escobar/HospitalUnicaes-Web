@@ -1,4 +1,4 @@
-import { inicialesApellido } from '@/lib/alfabeto-pacientes';
+import { ALFABETO_ES, inicialApellido } from '@/lib/alfabeto-pacientes';
 import { isDemoMode, supabase } from '@/lib/client';
 import { responder } from '@/services/admin.service';
 import type { Paginado } from '@/types/admin.types';
@@ -13,8 +13,8 @@ const columnasFicha = `${columnasListado},telefono,fecha_nacimiento,sexo,direcci
 const vacio = { items: [], total: 0 };
 
 // Las consultas usan la sesión del usuario y las políticas RLS de las tablas privadas.
-export async function listarPacientes(filtro: FiltroPacientes): Promise<Paginado<PacienteListado>> {
-    if (isDemoMode) return responder(demo.listarPacientes(filtro, PACIENTES_POR_PAGINA), vacio);
+export async function listarPacientes(filtro: FiltroPacientes, porPagina = PACIENTES_POR_PAGINA): Promise<Paginado<PacienteListado>> {
+    if (isDemoMode) return responder(demo.listarPacientes(filtro, porPagina), vacio);
 
     const consulta = supabase.from('pacientes').select(columnasListado, { count: 'exact' })
         .is('hospitalizaciones.fecha_alta', null);
@@ -22,11 +22,6 @@ export async function listarPacientes(filtro: FiltroPacientes): Promise<Paginado
     if (filtro.estado !== 'todos') consulta.eq('activo', filtro.estado === 'activos');
     if (filtro.hospitalizacion === 'hospitalizados') consulta.not('hospitalizaciones', 'is', null);
     if (filtro.hospitalizacion === 'ambulatorios') consulta.is('hospitalizaciones', null);
-
-    const iniciales = inicialesApellido(filtro.inicialApellido);
-    if (iniciales.length) {
-        consulta.or(iniciales.map((inicial) => `apellidos.ilike.${inicial}*`).join(','));
-    }
 
     // Cada término puede coincidir con nombre, apellido o DUI. La lista de caracteres evita
     // interpretar la búsqueda como sintaxis de filtros o comodines de PostgREST.
@@ -36,13 +31,31 @@ export async function listarPacientes(filtro: FiltroPacientes): Promise<Paginado
         consulta.or(`nombres.ilike.${patron},apellidos.ilike.${patron},documento_identidad.ilike.${patron}`);
     }
 
-    const desde = (filtro.page - 1) * PACIENTES_POR_PAGINA;
+    const desde = (filtro.page - 1) * porPagina;
     const { data, count, error } = await consulta
         .order('apellidos').order('nombres').order('id')
-        .range(desde, desde + PACIENTES_POR_PAGINA - 1)
+        .range(desde, desde + porPagina - 1)
         .returns<PacienteListado[]>();
     if (error) throw error;
     return { items: data, total: count ?? 0 };
+}
+
+export async function listarPacientesParaAlfabeto(filtro: Omit<FiltroPacientes, 'page'>): Promise<PacienteListado[]> {
+    const porPagina = 250;
+    const primera = await listarPacientes({ ...filtro, page: 1 }, porPagina);
+    const pacientes = [...primera.items];
+    const totalPaginas = Math.ceil(primera.total / porPagina);
+    for (let page = 2; page <= totalPaginas; page += 1) {
+        const siguiente = await listarPacientes({ ...filtro, page }, porPagina);
+        for (const paciente of siguiente.items) pacientes.push(paciente);
+    }
+    const grupos = [...ALFABETO_ES, '#'];
+    const alfabeto = new Intl.Collator('es-SV');
+    return pacientes.sort((a, b) =>
+        grupos.indexOf(inicialApellido(a.apellidos)) - grupos.indexOf(inicialApellido(b.apellidos)) ||
+        alfabeto.compare(a.apellidos, b.apellidos) ||
+        alfabeto.compare(a.nombres, b.nombres) ||
+        a.id.localeCompare(b.id));
 }
 
 export async function obtenerFichaPaciente(id: string): Promise<FichaPaciente | null> {

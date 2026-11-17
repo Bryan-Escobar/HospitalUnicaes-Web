@@ -17,8 +17,6 @@ describe('Pacientes', () => {
     it('combina búsqueda y filtros, abre la ficha y conserva el listado al volver', async () => {
         abrir('/pacientes', 'administrador@hospital.test');
         const buscar = await screen.findByRole('searchbox', { name: 'Buscar por nombre o documento' });
-        const alfabeto = within(screen.getByRole('group', { name: 'Inicial del apellido' }));
-        fireEvent.click(alfabeto.getByRole('button', { name: 'M' }));
         fireEvent.change(buscar, { target: { value: '01234567-8' } });
         fireEvent.change(screen.getByRole('combobox', { name: 'Hospitalización' }), { target: { value: 'hospitalizados' } });
         const estado = screen.getByRole('combobox', { name: 'Estado del paciente' });
@@ -39,36 +37,39 @@ describe('Pacientes', () => {
         expect(await screen.findByRole('link', { name: 'Ver ficha de Luis Martínez' })).toBeInTheDocument();
         expect(screen.getByRole('combobox', { name: 'Estado del paciente' })).toHaveValue('activos');
         expect(screen.getByRole('combobox', { name: 'Hospitalización' })).toHaveValue('hospitalizados');
-        expect(screen.getByRole('button', { name: 'M', pressed: true })).toBeInTheDocument();
+        expect(screen.getByRole('rowheader', { name: 'M' })).toBeInTheDocument();
     });
 
-    it('filtra por inicial sobre todo el listado y vuelve a la primera página al cambiar de letra', async () => {
+    it('agrupa por inicial y lleva al grupo aunque esté en otra página', async () => {
         abrir('/pacientes', 'administrador@hospital.test');
         const alfabeto = within(await screen.findByRole('group', { name: 'Inicial del apellido' }));
-        expect(alfabeto.getByRole('button', { name: 'Ñ' })).toBeInTheDocument();
-        expect(alfabeto.getByRole('button', { name: 'Todos', pressed: true })).toBeInTheDocument();
+        expect(alfabeto.getAllByRole('button').map((boton) => boton.textContent))
+            .toEqual([...'ABCDEFGHIJKLMNÑOPQRSTUVWXYZ']);
         const tabla = within(screen.getByRole('table', { name: 'Pacientes' }));
         const paginacion = within(await screen.findByRole('navigation', { name: 'Paginación' }));
-        const primeraPagina = tabla.getAllByRole('link').map((enlace) => enlace.getAttribute('href'));
         expect(tabla.getByRole('columnheader', { name: 'Apellidos y nombres' })).toBeInTheDocument();
-        const nombres = tabla.getAllByRole('row').slice(1).map((fila) => within(fila).getAllByRole('cell')[0].textContent ?? '');
+        const grupoA = tabla.getByRole('rowheader', { name: 'A' });
+        const nombres = within(grupoA.closest('tbody')!).getAllByRole('row').slice(1)
+            .map((fila) => within(fila).getAllByRole('cell')[0].textContent ?? '');
         const apellidos = nombres.map((nombre) => nombre.split(',')[0]);
         expect(nombres.every((nombre) => nombre.includes(', '))).toBe(true);
         expect(apellidos).toEqual([...apellidos].sort((a, b) => a.localeCompare(b, 'es-SV')));
-        fireEvent.click(alfabeto.getByRole('button', { name: 'Todos', pressed: true }));
-        expect(tabla.getAllByRole('link').map((enlace) => enlace.getAttribute('href'))).toEqual(primeraPagina);
+        fireEvent.click(alfabeto.getByRole('button', { name: 'A' }));
+        expect(grupoA).toHaveFocus();
         fireEvent.click(paginacion.getByRole('button', { name: '2' }));
         expect(await screen.findByRole('button', { name: '2', current: 'page' })).toBeInTheDocument();
 
-        fireEvent.click(alfabeto.getByRole('button', { name: 'M' }));
-        expect(await screen.findByRole('link', { name: 'Ver ficha de Luis Martínez' })).toBeInTheDocument();
-        expect(screen.queryByRole('link', { name: 'Ver ficha de María López' })).toBeNull();
-        expect(within(await screen.findByRole('navigation', { name: 'Paginación' }))
-            .getByRole('button', { name: '1', current: 'page' })).toBeInTheDocument();
+        const sinPacientes = alfabeto.getByRole('button', { name: 'Z' });
+        expect(sinPacientes).toBeDisabled();
+        fireEvent.click(sinPacientes);
+        expect(paginacion.getByRole('button', { name: '2', current: 'page' })).toBeInTheDocument();
+        expect(tabla.queryByRole('rowheader', { name: 'Z' })).toBeNull();
 
-        fireEvent.click(alfabeto.getByRole('button', { name: 'Todos' }));
-        expect(alfabeto.getByRole('button', { name: 'Todos', pressed: true })).toBeInTheDocument();
-        expect((await tabla.findAllByRole('link')).map((enlace) => enlace.getAttribute('href'))).toEqual(primeraPagina);
+        fireEvent.click(alfabeto.getByRole('button', { name: 'L' }));
+        const grupoL = await tabla.findByRole('rowheader', { name: 'L' });
+        expect(grupoL).toHaveFocus();
+        expect(within(grupoL.closest('tbody')!).getByRole('link', { name: 'Ver ficha de María López' })).toBeInTheDocument();
+        expect(paginacion.queryByRole('button', { name: '2', current: 'page' })).toBeNull();
     });
 
     it.each([
