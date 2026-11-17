@@ -3,7 +3,6 @@
 // sin tocar las pantallas.
 import { useDemoStore } from '@/store/useDemoStore';
 import type {
-    MapaPlantas,
     PerfilAdmin,
     Reportes,
 } from '@/types/admin.types';
@@ -24,18 +23,6 @@ export function responder<T>(data: T, vacio: T): Promise<T> {
 }
 
 export const PAGE_SIZE = 10;
-
-export function obtenerMapa(): Promise<MapaPlantas> {
-    // El mapa nunca está «vacío»: las 11 habitaciones son datos semilla. En modo vacío todas quedan libres.
-    const libres: MapaPlantas = {
-        ultimoCambio: null,
-        plantas: db.mapa.plantas.map((p) => ({
-            ...p,
-            habitaciones: p.habitaciones.map((h) => ({ ...h, camas: h.camas.map((c) => ({ ...c, paciente: null })) })),
-        })),
-    };
-    return responder(db.mapa, libres);
-}
 
 export function obtenerReportes(): Promise<Reportes> {
     return responder(db.reportes, {
