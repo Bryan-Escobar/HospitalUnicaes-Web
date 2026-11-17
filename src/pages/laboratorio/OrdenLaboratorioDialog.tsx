@@ -1,8 +1,12 @@
+import { useRef, useState } from 'react';
+import { Download } from 'lucide-react';
+
 import { ResourceView } from '@/components/ResourceView';
+import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { useResource } from '@/hooks/useResource';
-import { obtenerOrden } from '@/services/laboratorio.service';
+import { obtenerOrden, obtenerUrlDescargaResultado } from '@/services/laboratorio.service';
 import type { EstadoLaboratorio } from '@/types/admin.types';
 import type { DetalleOrdenLaboratorio, PersonaLaboratorio } from '@/types/laboratorio.types';
 import { fechaHoraLaboratorio, nombreCompleto } from './formato-laboratorio';
@@ -28,6 +32,43 @@ function historialOrden(orden: DetalleOrdenLaboratorio) {
         historial.push({ estado: 'completado', fecha: fin ?? null });
     }
     return historial;
+}
+
+function DescargarResultado({ ordenId, examen }: {
+    ordenId: string;
+    examen: DetalleOrdenLaboratorio['examenes'][number];
+}) {
+    const [estado, setEstado] = useState<'listo' | 'descargando' | 'error'>('listo');
+    const boton = useRef<HTMLButtonElement>(null);
+    const tipo = examen.resultado?.tipo_archivo;
+    const texto = tipo === 'pdf' ? 'Descargar PDF' : tipo === 'imagen' ? 'Descargar imagen' : 'Descargar archivo';
+
+    async function descargar() {
+        setEstado('descargando');
+        try {
+            const url = await obtenerUrlDescargaResultado(ordenId, examen.id);
+            if (!boton.current) return;
+            const enlace = document.createElement('a');
+            enlace.href = url;
+            enlace.click();
+            setEstado('listo');
+        } catch {
+            setEstado('error');
+        }
+    }
+
+    return (
+        <div>
+            <Button ref={boton} type="button" variant="outline" size="sm" disabled={estado === 'descargando'}
+                aria-label={`${texto} de ${examen.examen.nombre}`} onClick={descargar}>
+                <Download aria-hidden="true" />
+                {estado === 'descargando' ? 'Preparando descarga…' : texto}
+            </Button>
+            {estado === 'error' && (
+                <p role="alert" className="mt-1 text-xs text-danger">No se pudo preparar la descarga. Intenta de nuevo.</p>
+            )}
+        </div>
+    );
 }
 
 function OrdenDetalle({ orden }: { orden: DetalleOrdenLaboratorio }) {
@@ -69,9 +110,12 @@ function OrdenDetalle({ orden }: { orden: DetalleOrdenLaboratorio }) {
                 {orden.examenes.length === 0 ? <p className="text-sm text-muted-foreground">Sin exámenes registrados.</p> : (
                     <ul className="divide-y divide-border rounded-md border border-border">
                         {orden.examenes.map((examen) => (
-                            <li key={examen.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-sm">
-                                {examen.examen.nombre}
-                                <StatusBadge estado={examen.estado} />
+                            <li key={examen.id} className="space-y-2 px-3 py-2 text-sm">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                    {examen.examen.nombre}
+                                    <StatusBadge estado={examen.estado} />
+                                </div>
+                                {examen.resultado?.tiene_archivo && <DescargarResultado ordenId={orden.id} examen={examen} />}
                             </li>
                         ))}
                     </ul>

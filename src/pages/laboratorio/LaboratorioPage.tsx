@@ -5,12 +5,13 @@ import { PageHeader, Toolbar } from '@/components/layout/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { DataTable, type Column } from '@/components/ui/data-table';
 import { FilterChip } from '@/components/ui/filter-chip';
-import { Input } from '@/components/ui/input';
+import { Input, SearchInput } from '@/components/ui/input';
 import { Pagination } from '@/components/ui/pagination';
 import { Select } from '@/components/ui/select';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { useResource } from '@/hooks/useResource';
 import { estadoLabel } from '@/lib/estados';
+import { fechaHospital } from '@/lib/fechas-hospital';
 import { PAGE_SIZE } from '@/services/admin.service';
 import { contarOrdenes, ESTADOS_LABORATORIO, listarDoctoresLaboratorio, listarOrdenes } from '@/services/laboratorio.service';
 import type { FiltroLaboratorio, OrdenLaboratorio } from '@/types/laboratorio.types';
@@ -18,22 +19,29 @@ import { fechaHoraLaboratorio, nombreCompleto } from './formato-laboratorio';
 import { OrdenLaboratorioDialog } from './OrdenLaboratorioDialog';
 
 const estados = ['todas', ...ESTADOS_LABORATORIO] as const;
-const filtroInicial: FiltroLaboratorio = { estado: 'todas', doctor: '', desde: '', hasta: '', page: 1 };
+const filtroSinFechas: FiltroLaboratorio = {
+    estado: 'todas', doctor: '', desde: '', hasta: '', busqueda: '', page: 1,
+};
 
 export default function LaboratorioPage() {
-    const [filtro, setFiltro] = useState(filtroInicial);
+    const [filtro, setFiltro] = useState(() => {
+        const hoy = fechaHospital();
+        return { ...filtroSinFechas, desde: hoy, hasta: hoy };
+    });
     const [ordenId, setOrdenId] = useState<string | null>(null);
-    const { doctor, desde, hasta } = filtro;
+    const { doctor, desde, hasta, busqueda } = filtro;
     const rangoInvalido = Boolean(desde && hasta && desde > hasta);
     const ordenes = useResource(() => rangoInvalido ? Promise.resolve(null) : listarOrdenes(filtro), [filtro]);
     const contadores = useResource(
-        () => rangoInvalido ? Promise.resolve(null) : contarOrdenes({ doctor, desde, hasta }),
-        [doctor, desde, hasta],
+        () => rangoInvalido ? Promise.resolve(null) : contarOrdenes({ doctor, desde, hasta, busqueda }),
+        [doctor, desde, hasta, busqueda],
     );
     const doctores = useResource(listarDoctoresLaboratorio);
     const conteo = contadores.status === 'success' ? contadores.data : null;
     const total = conteo && conteo.pendiente + conteo.en_proceso + conteo.completado;
-    const filtrado = filtro.estado !== 'todas' || Boolean(doctor || desde || hasta);
+    const filtrado = filtro.estado !== 'todas' || Boolean(doctor || desde || hasta || busqueda);
+    const hoy = fechaHospital();
+    const soloHoy = desde === hoy && hasta === hoy;
 
     const actualizarFiltro = (cambios: Partial<FiltroLaboratorio>) => {
         setFiltro((actual) => ({ ...actual, ...cambios, page: 1 }));
@@ -81,6 +89,15 @@ export default function LaboratorioPage() {
                     <Button variant="link" onClick={contadores.refetch}>Reintentar carga de contadores</Button>
                 )}
             </Toolbar>
+            <Toolbar>
+                <SearchInput
+                    className="w-80 max-w-full"
+                    placeholder="Buscar por paciente o examen"
+                    aria-label="Buscar por paciente o examen"
+                    value={busqueda}
+                    onChange={(e) => actualizarFiltro({ busqueda: e.target.value })}
+                />
+            </Toolbar>
             <Toolbar className="items-end">
                 <label className="grid gap-1 text-sm font-medium">
                     Doctor
@@ -104,8 +121,11 @@ export default function LaboratorioPage() {
                     <Input type="date" value={hasta} aria-invalid={rangoInvalido}
                         onChange={(e) => actualizarFiltro({ hasta: e.target.value })} />
                 </label>
+                {!soloHoy && (
+                    <Button variant="outline" onClick={() => actualizarFiltro({ desde: hoy, hasta: hoy })}>Hoy</Button>
+                )}
                 {filtrado && (
-                    <Button variant="ghost" onClick={() => setFiltro(filtroInicial)}>Limpiar filtros</Button>
+                    <Button variant="ghost" onClick={() => setFiltro(filtroSinFechas)}>Limpiar filtros</Button>
                 )}
             </Toolbar>
 
@@ -120,7 +140,7 @@ export default function LaboratorioPage() {
                     rowKey={(o) => o.id}
                     onRetry={ordenes.refetch}
                     empty={filtrado
-                        ? { icon: FlaskConical, title: 'No hay órdenes con esos filtros', description: 'Ajusta el estado, el doctor o el rango de fechas.' }
+                        ? { icon: FlaskConical, title: 'No hay órdenes con esos filtros', description: 'Prueba otra búsqueda o cambia los filtros.' }
                         : { icon: FlaskConical, title: 'No hay órdenes de laboratorio' }}
                     footer={ordenes.data && (
                         <Pagination

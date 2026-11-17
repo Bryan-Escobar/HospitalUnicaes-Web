@@ -10,6 +10,7 @@ export interface Column<T> {
   header: string
   cell: (row: T) => React.ReactNode
   className?: string
+  headerClassName?: string
   // Ancho de la barra del esqueleto mientras carga
   skeleton?: string
 }
@@ -55,7 +56,8 @@ function DataTable<T>({
                   scope="col"
                   className={cn(
                     "h-10 px-4 text-xs leading-4 font-semibold tracking-wide whitespace-nowrap text-muted-foreground uppercase first:pl-4",
-                    c.className
+                    c.className,
+                    c.headerClassName
                   )}
                 >
                   {c.header}

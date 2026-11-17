@@ -1,3 +1,5 @@
+import { apiFetch } from '@/lib/api';
+import { terminosLaboratorio } from '@/lib/busqueda-laboratorio';
 import { isDemoMode, supabase } from '@/lib/client';
 import { instanteHospital, sumarDias } from '@/lib/fechas-hospital';
 import { PAGE_SIZE, responder } from '@/services/admin.service';
@@ -14,16 +16,37 @@ import * as demo from './laboratorio.mock';
 export const ESTADOS_LABORATORIO = ['pendiente', 'en_proceso', 'completado'] as const;
 
 const persona = 'id,nombres,apellidos';
-const consulta = `consulta:consultas!inner(doctor:personal!consultas_doctor_id_fkey(${persona}),expediente:expedientes(paciente:pacientes(${persona})))`;
+const relacionesConsulta = `doctor:personal!consultas_doctor_id_fkey(${persona}),expediente:expedientes(paciente:pacientes(${persona}))`;
 const examen = 'id,examen:examenes_catalogo(nombre)';
 const vacio = { items: [], total: 0 };
 
 // La sesión del administrador accede al listado mediante las políticas RLS de laboratorio.
-function consultaOrdenes(rango: RangoLaboratorio, columnas: string, head = false) {
-    const query = supabase.from('ordenes_laboratorio').select(columnas, { count: 'exact', head });
+function consultaOrdenes(rango: RangoLaboratorio, soloConteo = false) {
+    const terminos = terminosLaboratorio(rango.busqueda);
+    const columnas = soloConteo ? ['id'] : [
+        'id,fecha_solicitud,estado',
+        `examenes:orden_examenes(${examen})`,
+    ];
+    if (!soloConteo) columnas.push(`consulta:consultas!inner(${relacionesConsulta})`);
+    else if (rango.doctor) columnas.push('consulta:consultas!inner(doctor_id)');
+    // Las relaciones externas permiten aceptar una coincidencia por cualquiera de las dos ramas.
+    if (terminos.length) {
+        columnas.push(
+            'por_paciente:consultas(expediente:expedientes!inner(paciente:pacientes!inner(id)))',
+            'por_examen:orden_examenes(examen:examenes_catalogo!inner(id))',
+        );
+    }
+
+    const query = supabase.from('ordenes_laboratorio').select(columnas.join(','), { count: 'exact', head: soloConteo });
     if (rango.doctor) query.eq('consulta.doctor_id', rango.doctor);
     if (rango.desde) query.gte('fecha_solicitud', instanteHospital(rango.desde));
     if (rango.hasta) query.lt('fecha_solicitud', instanteHospital(sumarDias(rango.hasta, 1)));
+    for (const termino of terminos) {
+        const patron = `*${termino}*`;
+        query.or(`nombres.ilike.${patron},apellidos.ilike.${patron}`, { referencedTable: 'por_paciente.expediente.paciente' });
+        query.ilike('por_examen.examen.nombre', patron);
+    }
+    if (terminos.length) query.or('por_paciente.not.is.null,por_examen.not.is.null');
     return query;
 }
 
@@ -34,7 +57,7 @@ export async function listarOrdenes(filtro: FiltroLaboratorio): Promise<Paginado
         return responder({ items: ordenes.slice(offset, offset + PAGE_SIZE), total: ordenes.length }, vacio);
     }
 
-    const query = consultaOrdenes(filtro, `id,fecha_solicitud,estado,${consulta},examenes:orden_examenes(${examen})`);
+    const query = consultaOrdenes(filtro);
     if (filtro.estado !== 'todas') query.eq('estado', filtro.estado);
     const { data, count, error } = await query
         .order('fecha_solicitud', { ascending: false }).order('id', { ascending: false })
@@ -53,8 +76,7 @@ export async function contarOrdenes(rango: RangoLaboratorio) {
     }
 
     const conteos = await Promise.all(ESTADOS_LABORATORIO.map(async (estado) => {
-        const columnas = rango.doctor ? 'id,consulta:consultas!inner(doctor_id)' : 'id';
-        const { count, error } = await consultaOrdenes(rango, columnas, true).eq('estado', estado);
+        const { count, error } = await consultaOrdenes(rango, true).eq('estado', estado);
         if (error) throw error;
         return [estado, count ?? 0] as const;
     }));
@@ -83,10 +105,16 @@ export async function listarDoctoresLaboratorio(): Promise<PersonaLaboratorio[]>
 export async function obtenerOrden(id: string): Promise<DetalleOrdenLaboratorio | null> {
     if (isDemoMode) return responder(demo.ordenesDemo().find((orden) => orden.id === id) ?? null, null);
 
-    const { data, error } = await supabase.from('ordenes_laboratorio')
-        .select(`id,fecha_solicitud,estado,indicaciones,${consulta},examenes:orden_examenes(${examen},estado,fecha_inicio,fecha_completado)`)
-        .eq('id', id)
-        .maybeSingle<DetalleOrdenLaboratorio>();
-    if (error) throw error;
-    return data;
+    type OrdenApi = Omit<DetalleOrdenLaboratorio, 'consulta'> & { paciente: PersonaLaboratorio; doctor: PersonaLaboratorio };
+    const { paciente, doctor, ...orden } = await apiFetch<OrdenApi>(`/laboratorio/ordenes/${id}`);
+    return { ...orden, consulta: { doctor, expediente: { paciente } } };
+}
+
+export async function obtenerUrlDescargaResultado(ordenId: string, examenId: string): Promise<string> {
+    const { url } = await apiFetch<{ url: string }>(
+        `/laboratorio/ordenes/${ordenId}/examenes/${examenId}/resultado/archivo`,
+    );
+    const descarga = new URL(url);
+    descarga.searchParams.set('download', '');
+    return descarga.href;
 }

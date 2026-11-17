@@ -3,11 +3,9 @@
 // (5 VIP + 6 semiprivadas = 17 camas, 1 ambulancia, estados exactos).
 import type {
     AmbulanciaEstado,
-    InventarioResumen,
     MapaPlantas,
     Paciente,
     PerfilAdmin,
-    Recurso,
     Reportes,
     ServicioBitacora,
 } from '@/types/admin.types';
@@ -106,55 +104,6 @@ export const mapa: MapaPlantas = {
             ],
         },
     ],
-};
-
-const recursosDiseno: Recurso[] = [
-    { id: 'r1', nombre: 'Guantes de nitrilo (caja)', categoria: 'Insumos', cantidad: 12, minimo: 20, ubicacion: 'Bodega central' },
-    { id: 'r2', nombre: 'Mascarillas N95', categoria: 'Insumos', cantidad: 140, minimo: 50, ubicacion: 'Bodega central' },
-    { id: 'r3', nombre: 'Suero fisiológico 1 L', categoria: 'Medicamentos', cantidad: 8, minimo: 30, ubicacion: 'Farmacia' },
-    { id: 'r4', nombre: 'Tanque de oxígeno', categoria: 'Equipos', cantidad: 6, minimo: 4, ubicacion: 'Planta 2' },
-    { id: 'r5', nombre: 'Monitor de signos vitales', categoria: 'Equipos', cantidad: 9, minimo: 5, ubicacion: 'Planta 3' },
-    { id: 'r6', nombre: 'Silla de ruedas', categoria: 'Mobiliario', cantidad: 7, minimo: 4, ubicacion: 'Recepción' },
-    { id: 'r7', nombre: 'Jeringas 5 ml', categoria: 'Insumos', cantidad: 45, minimo: 100, ubicacion: 'Farmacia' },
-    { id: 'r8', nombre: 'Desfibrilador portátil', categoria: 'Equipos', cantidad: 1, minimo: 2, ubicacion: 'Ambulancia' },
-    { id: 'r9', nombre: 'Sábanas', categoria: 'Lencería', cantidad: 64, minimo: 40, ubicacion: 'Lavandería' },
-];
-
-const RECURSOS_EXTRA: [string, string, string][] = [
-    ['Gasas estériles', 'Insumos', 'Bodega central'],
-    ['Paracetamol 500 mg', 'Medicamentos', 'Farmacia'],
-    ['Loratadina 10 mg', 'Medicamentos', 'Farmacia'],
-    ['Termómetro digital', 'Equipos', 'Planta 2'],
-    ['Camilla plegable', 'Mobiliario', 'Emergencias'],
-    ['Batas quirúrgicas', 'Lencería', 'Lavandería'],
-    ['Alcohol gel 1 L', 'Higiene', 'Bodega central'],
-    ['Esfigmomanómetro', 'Equipos', 'Planta 3'],
-    ['Vendas elásticas', 'Insumos', 'Farmacia'],
-    ['Toallas', 'Lencería', 'Lavandería'],
-];
-
-// 86 recursos en 6 categorías · 4 con stock bajo (WEB-7)
-export const recursos: Recurso[] = [
-    ...recursosDiseno,
-    ...Array.from({ length: 77 }, (_, i): Recurso => {
-        const [nombre, categoria, ubicacion] = RECURSOS_EXTRA[i % RECURSOS_EXTRA.length]!;
-        const lote = Math.floor(i / RECURSOS_EXTRA.length);
-        return {
-            id: `r${10 + i}`,
-            nombre: lote === 0 ? nombre : `${nombre} (lote ${lote + 1})`,
-            categoria,
-            cantidad: 20 + ((i * 13) % 80),
-            minimo: 10 + (i % 10),
-            ubicacion,
-        };
-    }),
-];
-
-export const inventarioResumen: InventarioResumen = {
-    registrados: 86,
-    categorias: 6,
-    ultimaActualizacion: 'Hoy 09:12',
-    actualizadoPor: 'Rosa Guzmán',
 };
 
 export const ambulancia: AmbulanciaEstado = {

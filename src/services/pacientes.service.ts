@@ -1,3 +1,4 @@
+import { inicialesApellido } from '@/lib/alfabeto-pacientes';
 import { isDemoMode, supabase } from '@/lib/client';
 import { responder } from '@/services/admin.service';
 import type { Paginado } from '@/types/admin.types';
@@ -21,6 +22,11 @@ export async function listarPacientes(filtro: FiltroPacientes): Promise<Paginado
     if (filtro.estado !== 'todos') consulta.eq('activo', filtro.estado === 'activos');
     if (filtro.hospitalizacion === 'hospitalizados') consulta.not('hospitalizaciones', 'is', null);
     if (filtro.hospitalizacion === 'ambulatorios') consulta.is('hospitalizaciones', null);
+
+    const iniciales = inicialesApellido(filtro.inicialApellido);
+    if (iniciales.length) {
+        consulta.or(iniciales.map((inicial) => `apellidos.ilike.${inicial}*`).join(','));
+    }
 
     // Cada término puede coincidir con nombre, apellido o DUI. La lista de caracteres evita
     // interpretar la búsqueda como sintaxis de filtros o comodines de PostgREST.

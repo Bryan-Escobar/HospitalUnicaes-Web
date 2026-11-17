@@ -11,6 +11,7 @@ import { useResource } from '@/hooks/useResource';
 import { ApiError } from '@/lib/api';
 import { crearTurno, listarPersonalParaTurnos } from '@/services/turnos.service';
 import { TIPOS_TURNO, type CrearTurnoBody } from '@/types/turnos.types';
+import { SelectorPersonal, type OpcionPersonal } from './SelectorPersonal';
 
 export function TurnoFormDialog({
     fechaInicial,
@@ -25,18 +26,24 @@ export function TurnoFormDialog({
 }) {
     const id = useId();
     const personal = useResource(listarPersonalParaTurnos);
+    const [persona, setPersona] = useState<OpcionPersonal | null>(null);
     const [horas, setHoras] = useState({ inicio: '', fin: '' });
     const [guardando, setGuardando] = useState(false);
     const [error, setError] = useState<ApiError | null>(null);
     const envioEnCurso = useRef(false);
+    const opcionesPersonal = (personal.data ?? []).map((p) => ({
+        id: p.id,
+        nombre: `${p.nombres} ${p.apellidos}`,
+        detalle: `${p.tipo.nombre} · ${p.codigo_empleado}`,
+    }));
 
     async function guardar(e: FormEvent<HTMLFormElement>) {
         e.preventDefault();
-        if (envioEnCurso.current || personal.status !== 'success') return;
+        if (envioEnCurso.current || personal.status !== 'success' || !persona) return;
 
         const form = new FormData(e.currentTarget);
         const body: CrearTurnoBody = {
-            personal_id: String(form.get('personal_id')),
+            personal_id: persona.id,
             fecha: String(form.get('fecha')),
             hora_inicio: horas.inicio,
             hora_fin: horas.fin,
@@ -75,7 +82,7 @@ export function TurnoFormDialog({
             footer={
                 <>
                     <Button variant="outline" disabled={guardando} onClick={onClose}>Cancelar</Button>
-                    <Button type="submit" form={id} disabled={guardando || personal.status !== 'success'}>
+                    <Button type="submit" form={id} disabled={guardando || personal.status !== 'success' || !persona}>
                         {guardando ? 'Guardando…' : 'Guardar turno'}
                     </Button>
                 </>
@@ -91,14 +98,15 @@ export function TurnoFormDialog({
                     <fieldset disabled={guardando} className="grid gap-4">
                         <div className="grid gap-2">
                             <Label htmlFor={`${id}-personal`}>Personal</Label>
-                            <Select id={`${id}-personal`} name="personal_id" defaultValue="" required>
-                                <option value="" disabled>Selecciona una persona</option>
-                                {personal.data?.map((p) => (
-                                    <option key={p.id} value={p.id}>
-                                        {p.nombres} {p.apellidos} · {p.tipo.nombre} · {p.codigo_empleado}
-                                    </option>
-                                ))}
-                            </Select>
+                            <SelectorPersonal
+                                id={`${id}-personal`}
+                                etiqueta="Personal"
+                                texto={persona?.nombre ?? 'Selecciona una persona'}
+                                opciones={opcionesPersonal}
+                                seleccion={persona ? [persona.id] : []}
+                                onSelect={(opcion) => { setPersona(opcion); setError(null); }}
+                            />
+                            {persona && <p className="text-xs text-muted-foreground">{persona.detalle}</p>}
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor={`${id}-area`}>Área</Label>

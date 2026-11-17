@@ -10,6 +10,7 @@ export interface RangoLaboratorio {
     doctor: string;
     desde: string;
     hasta: string;
+    busqueda: string;
 }
 
 export interface FiltroLaboratorio extends RangoLaboratorio {
@@ -31,5 +32,6 @@ export interface DetalleOrdenLaboratorio extends OrdenLaboratorio {
         estado: EstadoLaboratorio;
         fecha_inicio: string | null;
         fecha_completado: string | null;
+        resultado: { tiene_archivo: boolean; tipo_archivo?: 'pdf' | 'imagen' | null } | null;
     })[];
 }

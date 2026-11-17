@@ -181,9 +181,9 @@ export default function Dashboard() {
                                         valor={inv.bajoMinimo}
                                         tono="warning"
                                     />
-                                    <AlertaInventario to="/inventario" icon={Package} label="Lotes vencidos" valor={inv.lotes.vencidos} tono="danger" />
-                                    <AlertaInventario to="/inventario" icon={CalendarDays} label="Vencen en 15 días" valor={inv.lotes.en_15_dias} tono="warning" />
-                                    <AlertaInventario to="/inventario" icon={CalendarDays} label="Vencen en 16 a 30 días" valor={inv.lotes.en_30_dias} tono="info" />
+                                    <AlertaInventario to="/inventario?vista=caducidad&alerta=vencido" icon={Package} label="Lotes vencidos" valor={inv.lotes.vencidos} tono="danger" />
+                                    <AlertaInventario to="/inventario?vista=caducidad&alerta=15_dias" icon={CalendarDays} label="Vencen en 15 días" valor={inv.lotes.en_15_dias} tono="warning" />
+                                    <AlertaInventario to="/inventario?vista=caducidad&alerta=30_dias" icon={CalendarDays} label="Vencen en 16 a 30 días" valor={inv.lotes.en_30_dias} tono="info" />
                                 </ul>
                             )}
                         </ResourceView>

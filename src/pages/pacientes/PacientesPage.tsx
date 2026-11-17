@@ -12,17 +12,19 @@ import { Pagination } from '@/components/ui/pagination';
 import { Select } from '@/components/ui/select';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { useResource } from '@/hooks/useResource';
+import { ALFABETO_ES } from '@/lib/alfabeto-pacientes';
+import { cn } from '@/lib/utils';
 import { listarPacientes, PACIENTES_POR_PAGINA } from '@/services/pacientes.service';
 import type { FiltroPacientes, PacienteListado } from '@/types/pacientes.types';
 
 function columnas(filtro: FiltroPacientes): Column<PacienteListado>[] {
     return [
         {
-            header: 'Paciente',
+            header: 'Apellidos y nombres',
             cell: (p) => (
                 <span className="flex items-center gap-3">
                     <Avatar name={`${p.nombres} ${p.apellidos}`} size="sm" />
-                    <span className="font-semibold">{p.nombres} {p.apellidos}</span>
+                    <span className="font-semibold">{p.apellidos}, {p.nombres}</span>
                 </span>
             ),
         },
@@ -49,14 +51,39 @@ function columnas(filtro: FiltroPacientes): Column<PacienteListado>[] {
 }
 
 function ListadoPacientes({ filtroInicial }: { filtroInicial: FiltroPacientes }) {
-    const [filtro, setFiltro] = useState(filtroInicial);
+    const [filtro, setFiltro] = useState(() => ({ ...filtroInicial, inicialApellido: filtroInicial.inicialApellido ?? '' }));
     const pacientes = useResource(() => listarPacientes(filtro), [filtro]);
-    const cambiar = (parcial: Partial<FiltroPacientes>) => setFiltro((actual) => ({ ...actual, page: 1, ...parcial }));
-    const hayFiltros = filtro.busqueda.trim() !== '' || filtro.estado !== 'todos' || filtro.hospitalizacion !== 'todas';
+    const cambiar = (parcial: Partial<typeof filtro>) => setFiltro((actual) => ({ ...actual, page: 1, ...parcial }));
+    const { inicialApellido } = filtro;
+    const hayFiltros = Boolean(inicialApellido || filtro.busqueda.trim()) ||
+        filtro.estado !== 'todos' || filtro.hospitalizacion !== 'todas';
 
     return (
         <>
             <PageHeader title="Pacientes" />
+            <div role="group" aria-labelledby="pacientes-por-apellido" className="mb-4 space-y-2">
+                <p id="pacientes-por-apellido" className="text-sm font-medium">Inicial del apellido</p>
+                <div className="flex flex-wrap gap-1">
+                    {['', ...ALFABETO_ES].map((letra) => {
+                        const seleccionada = inicialApellido === letra;
+                        return (
+                            <Button
+                                key={letra}
+                                type="button"
+                                size="sm"
+                                variant={seleccionada ? 'default' : 'outline'}
+                                className={cn('min-w-8', letra && 'px-0')}
+                                aria-pressed={seleccionada}
+                                onClick={() => {
+                                    if (!seleccionada || filtro.page !== 1) cambiar({ inicialApellido: letra });
+                                }}
+                            >
+                                {letra || 'Todos'}
+                            </Button>
+                        );
+                    })}
+                </div>
+            </div>
             <Toolbar>
                 <SearchInput
                     className="w-72"

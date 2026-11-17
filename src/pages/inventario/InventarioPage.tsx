@@ -1,177 +1,156 @@
 import { useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { PackageSearch, Plus, TriangleAlert } from 'lucide-react';
+import { CalendarClock, ClipboardList, Package, Truck } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
 
 import { KpiCard } from '@/components/KpiCard';
 import { PageHeader, Toolbar } from '@/components/layout/AdminLayout';
+import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { DataTable, type Column } from '@/components/ui/data-table';
-import { FilterChip } from '@/components/ui/filter-chip';
 import { SearchInput } from '@/components/ui/input';
-import { Pagination } from '@/components/ui/pagination';
 import { Select } from '@/components/ui/select';
-import { StatusBadge } from '@/components/ui/status-badge';
-import { useResource } from '@/hooks/useResource';
+import { useResource, type Resource } from '@/hooks/useResource';
+import { isDemoMode } from '@/lib/client';
 import { cn } from '@/lib/utils';
+import { listarAlertas } from '@/services/inventario.service';
 import {
-    categoriasInventario,
-    listarRecursos,
-    obtenerResumenInventario,
-    PAGE_SIZE,
-    ubicacionesInventario,
-    type FiltroInventario,
-} from '@/services/admin.service';
-import type { Recurso } from '@/types/admin.types';
+    ALERTAS_CADUCIDAD,
+    type AlertaCaducidad,
+    type AlertasInventario,
+    type CategoriaInventario,
+    type LoteConAlerta,
+} from '@/types/inventario.types';
 
-const stockBajo = (r: Recurso) => r.cantidad < r.minimo;
+import { ActivosInventario } from './ActivosInventario';
+import { CatalogoInventario } from './CatalogoInventario';
+import { DetalleInventario } from './DetalleInventario';
+import { CaducidadBadge, FechaInventario, FiltroCategoria } from './InventarioUI';
+import { ProveedoresInventario } from './ProveedoresInventario';
 
-const columnas: Column<Recurso>[] = [
-    { header: 'Recurso', skeleton: 'w-44', cell: (r) => <span className="font-semibold">{r.nombre}</span> },
-    { header: 'Categoría', cell: (r) => r.categoria },
+const VISTAS = [
+    { id: '', texto: 'Catálogo', icono: ClipboardList },
+    { id: 'activos', texto: 'Activos', icono: Package },
+    { id: 'proveedores', texto: 'Proveedores', icono: Truck },
+    { id: 'caducidad', texto: 'Caducidad', icono: CalendarClock },
+] as const;
+
+const INDICADORES = [
+    { alerta: 'vencido', label: 'Lotes vencidos', campo: 'vencidos' },
+    { alerta: '15_dias', label: 'Vencen en 0 a 15 días', campo: 'en_15_dias' },
+    { alerta: '30_dias', label: 'Vencen en 16 a 30 días', campo: 'en_30_dias' },
+] as const;
+
+const columnasAlertas: Column<LoteConAlerta>[] = [
     {
-        header: 'Cantidad',
-        cell: (r) => <span className={cn('tabular', stockBajo(r) && 'font-bold text-warning-ink')}>{r.cantidad}</span>,
+        header: 'Ítem',
+        cell: (lote) => (
+            <>
+                <span className="block font-semibold">{lote.item.nombre}</span>
+                <span className="text-xs text-muted-foreground">{lote.item.codigo}</span>
+            </>
+        ),
     },
-    { header: 'Mínimo', cell: (r) => <span className="tabular">{r.minimo}</span> },
-    { header: 'Ubicación', cell: (r) => r.ubicacion },
-    {
-        header: 'Alerta',
-        cell: (r) => (stockBajo(r) ? <StatusBadge estado="stock_bajo" /> : <span className="text-subtle-foreground">—</span>),
-    },
+    { header: 'Lote', cell: (lote) => lote.numero_lote },
+    { header: 'Caducidad', cell: (lote) => <FechaInventario value={lote.fecha_caducidad} /> },
+    { header: 'Cantidad', cell: (lote) => lote.cantidad_actual },
+    { header: 'Estado', cell: (lote) => <CaducidadBadge alerta={lote.alerta} /> },
     {
         header: '',
-        className: 'text-right w-36',
-        cell: () => (
-            <span className="inline-flex items-center gap-1.5 text-[13px]">
-                <Button variant="link" size="sm">
-                    Editar
-                </Button>
-                <span aria-hidden className="text-muted-foreground">·</span>
-                <Button variant="link-danger" size="sm">
-                    Eliminar
-                </Button>
-            </span>
-        ),
+        className: 'text-right',
+        cell: (lote) => <Button asChild size="sm" variant="link">
+            <Link to={`?item=${lote.item.id}`} aria-label={`Ver lotes de ${lote.item.nombre}`}>Ver lotes</Link>
+        </Button>,
     },
 ];
 
-// WEB-7 Inventario y recursos: existencias por categoría y alertas de stock bajo.
-export default function InventarioPage() {
-    // El dashboard enlaza aquí con ?stock=bajo para abrir la lista ya filtrada.
-    const [params] = useSearchParams();
-    const [filtro, setFiltro] = useState<FiltroInventario>({
-        busqueda: '',
-        categoria: 'todas',
-        ubicacion: 'todas',
-        soloStockBajo: params.get('stock') === 'bajo',
-        page: 1,
-    });
-    const resumen = useResource(obtenerResumenInventario);
-    const recursos = useResource(() => listarRecursos(filtro), [filtro]);
-    const cambiar = (parcial: Partial<FiltroInventario>) => setFiltro((f) => ({ ...f, ...parcial, page: 1 }));
-    const hayFiltros = filtro.busqueda !== '' || filtro.categoria !== 'todas' || filtro.ubicacion !== 'todas' || filtro.soloStockBajo;
-    const r = resumen.data;
-    const estadoKpi = resumen.status === 'empty' ? 'success' : resumen.status;
+function Caducidad({ recurso, alerta, cambiarAlerta }: {
+    recurso: Resource<AlertasInventario>;
+    alerta: AlertaCaducidad | '';
+    cambiarAlerta: (value: AlertaCaducidad | '') => void;
+}) {
+    const [categoria, setCategoria] = useState<CategoriaInventario | ''>('');
+    const [buscar, setBuscar] = useState('');
+    const consulta = buscar.trim().toLowerCase();
+    const filas = recurso.data?.items.filter((lote) =>
+        (!alerta || lote.alerta === alerta) &&
+        (!categoria || lote.item.categoria === categoria) &&
+        [lote.numero_lote, lote.item.nombre, lote.item.codigo].some((valor) => valor.toLowerCase().includes(consulta)),
+    );
 
     return (
         <>
-            <PageHeader
-                title="Inventario y recursos"
-                actions={
-                    <Button>
-                        <Plus /> Nuevo recurso
-                    </Button>
-                }
-            />
-            <section aria-label="Resumen de inventario" className="mb-5 grid grid-cols-4 gap-4">
-                <KpiCard label="Recursos registrados" status={estadoKpi} value={r?.registrados} footer={r && `En ${r.categorias} categorías`} />
-                <KpiCard
-                    label={
-                        <>
-                            <TriangleAlert className="size-3.5 text-warning-ink" aria-hidden /> Con stock bajo
-                        </>
-                    }
-                    status={estadoKpi}
-                    value={r?.stockBajo}
-                    footer="Por debajo del mínimo"
-                    highlight={!!r && r.stockBajo > 0 && estadoKpi === 'success'}
-                />
-                <KpiCard label="Categorías" status={estadoKpi} value={r?.categorias} footer="Insumos, equipos, medicamentos…" />
-                <KpiCard
-                    label="Última actualización"
-                    status={estadoKpi}
-                    value={r?.registrados ? r.ultimaActualizacion : '—'}
-                    footer={r?.registrados ? `Por ${r.actualizadoPor}` : 'Sin movimientos'}
-                />
-            </section>
-
             <Toolbar>
-                <SearchInput
-                    className="w-72"
-                    placeholder="Buscar recurso"
-                    aria-label="Buscar recurso"
-                    value={filtro.busqueda}
-                    onChange={(e) => cambiar({ busqueda: e.target.value })}
-                />
-                <Select aria-label="Categoría" value={filtro.categoria} onChange={(e) => cambiar({ categoria: e.target.value })}>
-                    <option value="todas">Categoría</option>
-                    {categoriasInventario().map((c) => (
-                        <option key={c}>{c}</option>
-                    ))}
+                <SearchInput className="w-64" aria-label="Buscar alertas de caducidad" placeholder="Buscar ítem o lote"
+                    value={buscar} onChange={(e) => setBuscar(e.target.value)} />
+                <FiltroCategoria value={categoria} onChange={setCategoria} />
+                <Select aria-label="Estado de caducidad" value={alerta} onChange={(e) => cambiarAlerta(e.target.value as AlertaCaducidad | '')}>
+                    <option value="">Todas las alertas</option>
+                    {Object.entries(ALERTAS_CADUCIDAD).map(([id, texto]) => <option key={id} value={id}>{texto}</option>)}
                 </Select>
-                <Select aria-label="Ubicación" value={filtro.ubicacion} onChange={(e) => cambiar({ ubicacion: e.target.value })}>
-                    <option value="todas">Ubicación</option>
-                    {ubicacionesInventario().map((u) => (
-                        <option key={u}>{u}</option>
-                    ))}
-                </Select>
-                <FilterChip
-                    className="h-10 rounded-md"
-                    selected={filtro.soloStockBajo}
-                    onClick={() => cambiar({ soloStockBajo: !filtro.soloStockBajo })}
-                >
-                    {!filtro.soloStockBajo && <TriangleAlert className="size-3.5" />} Solo stock bajo
-                </FilterChip>
             </Toolbar>
+            <DataTable label="Alertas de caducidad" columns={columnasAlertas} rows={filas}
+                status={recurso.status === 'success' && !filas?.length ? 'empty' : recurso.status}
+                rowKey={(lote) => lote.lote_id} onRetry={recurso.refetch}
+                empty={{ title: 'No hay lotes con alertas que coincidan con los filtros' }} />
+        </>
+    );
+}
 
-            <DataTable
-                label="Inventario"
-                columns={columnas}
-                rows={recursos.data?.items}
-                status={recursos.status}
-                rowKey={(x) => x.id}
-                onRetry={recursos.refetch}
-                skeletonRows={9}
-                empty={
-                    hayFiltros
-                        ? {
-                              icon: PackageSearch,
-                              title: filtro.soloStockBajo ? 'Ningún recurso con stock bajo' : 'Sin coincidencias',
-                              description: filtro.soloStockBajo
-                                  ? 'Todas las existencias están sobre su mínimo.'
-                                  : 'Ningún recurso coincide con la búsqueda o los filtros.',
-                          }
-                        : {
-                              title: 'El inventario está vacío',
-                              description: 'Registra insumos, equipos y medicamentos con su cantidad mínima para recibir alertas.',
-                              action: (
-                                  <Button>
-                                      <Plus /> Nuevo recurso
-                                  </Button>
-                              ),
-                          }
-                }
-                footer={
-                    recursos.data && (
-                        <Pagination
-                            page={filtro.page}
-                            pageSize={PAGE_SIZE - 1}
-                            total={recursos.data.total}
-                            onPageChange={(page) => setFiltro((f) => ({ ...f, page }))}
-                        />
-                    )
-                }
-            />
+export default function InventarioPage() {
+    const [params, setParams] = useSearchParams();
+    const vista = VISTAS.find(({ id }) => id === params.get('vista'))?.id ?? '';
+    const itemId = params.get('item') || undefined;
+    const bajoMinimo = params.get('stock') === 'bajo';
+    const alerta = INDICADORES.find((indicador) => indicador.alerta === params.get('alerta'))?.alerta ?? '';
+    const [mensaje, setMensaje] = useState('');
+    const [version, setVersion] = useState(0);
+    const alertas = useResource(() => listarAlertas(), [version], () => false);
+
+    function onSaved(texto: string) {
+        setMensaje(texto);
+        setVersion((valor) => valor + 1);
+    }
+
+    return (
+        <>
+            {isDemoMode && <Alert className="mb-4">Modo demostración. Conecta el panel a la API para registrar operaciones.</Alert>}
+            {mensaje && (
+                <Alert className="mb-4" action={<Button size="sm" variant="ghost" onClick={() => setMensaje('')}>Cerrar</Button>}>
+                    {mensaje}
+                </Alert>
+            )}
+            {itemId && vista === '' ? (
+                <DetalleInventario key={itemId} id={itemId} version={version} soloLectura={isDemoMode} onSaved={onSaved}
+                    volver={bajoMinimo ? '/inventario?stock=bajo' : '/inventario'} />
+            ) : (
+                <>
+                    <PageHeader title="Inventario y recursos" />
+                    <section aria-label="Resumen de caducidad" className="mb-5 grid gap-4 sm:grid-cols-3">
+                        {INDICADORES.map(({ alerta: codigo, label, campo }) => (
+                            <Link key={codigo} to={`?vista=caducidad&alerta=${codigo}`} className="rounded-xl focus-visible:ring-2 focus-visible:ring-ring">
+                                <KpiCard label={label} status={alertas.status === 'empty' ? 'success' : alertas.status}
+                                    value={alertas.data?.resumen[campo]} highlight={!!alertas.data?.resumen[campo]} />
+                            </Link>
+                        ))}
+                    </section>
+                    <nav aria-label="Secciones de inventario" className="mb-5 flex flex-wrap gap-1 border-b border-border">
+                        {VISTAS.map(({ id, texto, icono: Icon }) => (
+                            <Link key={id} to={id ? `?vista=${id}` : '/inventario'} aria-current={vista === id ? 'page' : undefined}
+                                className={cn(
+                                    'inline-flex items-center gap-2 border-b-2 px-3 py-2.5 text-sm font-medium',
+                                    vista === id ? 'border-primary text-primary-ink' : 'border-transparent text-muted-foreground hover:text-foreground',
+                                )}>
+                                <Icon className="size-4" aria-hidden /> {texto}
+                            </Link>
+                        ))}
+                    </nav>
+                    {vista === '' && <CatalogoInventario bajoMinimo={bajoMinimo} soloLectura={isDemoMode} onSaved={onSaved} />}
+                    {vista === 'activos' && <ActivosInventario key={itemId ?? 'todos'} itemId={itemId} soloLectura={isDemoMode} onSaved={onSaved} />}
+                    {vista === 'proveedores' && <ProveedoresInventario soloLectura={isDemoMode} onSaved={onSaved} />}
+                    {vista === 'caducidad' && <Caducidad recurso={alertas} alerta={alerta}
+                        cambiarAlerta={(value) => setParams(value ? { vista, alerta: value } : { vista })} />}
+                </>
+            )}
         </>
     );
 }

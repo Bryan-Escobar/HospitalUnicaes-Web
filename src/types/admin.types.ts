@@ -41,22 +41,6 @@ export interface MapaPlantas {
   ultimoCambio: string | null
 }
 
-export interface Recurso {
-  id: string
-  nombre: string
-  categoria: string
-  cantidad: number
-  minimo: number
-  ubicacion: string
-}
-
-export interface InventarioResumen {
-  registrados: number
-  categorias: number
-  ultimaActualizacion: string
-  actualizadoPor: string
-}
-
 export interface AmbulanciaEstado {
   estado: EstadoAmbulancia
   desde: string

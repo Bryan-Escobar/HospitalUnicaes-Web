@@ -4,11 +4,9 @@
 import { useDemoStore } from '@/store/useDemoStore';
 import type {
     AmbulanciaEstado,
-    InventarioResumen,
     MapaPlantas,
     Paginado,
     PerfilAdmin,
-    Recurso,
     Reportes,
     ResultadoServicio,
     ServicioBitacora,
@@ -29,18 +27,6 @@ export function responder<T>(data: T, vacio: T): Promise<T> {
     });
 }
 
-function normalizar(texto: string) {
-    return texto
-        .normalize('NFD')
-        .replace(/[̀-ͯ]/g, '')
-        .toLowerCase();
-}
-
-function contiene(campos: (string | null)[], busqueda: string) {
-    const q = normalizar(busqueda.trim());
-    return !q || campos.some((c) => c && normalizar(c).includes(q));
-}
-
 function paginar<T>(items: T[], page: number, pageSize: number): Paginado<T> {
     return { items: items.slice((page - 1) * pageSize, page * pageSize), total: items.length };
 }
@@ -59,38 +45,6 @@ export function obtenerMapa(): Promise<MapaPlantas> {
         })),
     };
     return responder(db.mapa, libres);
-}
-
-export interface FiltroInventario {
-    busqueda: string;
-    categoria: string;
-    ubicacion: string;
-    soloStockBajo: boolean;
-    page: number;
-}
-
-export function listarRecursos(f: FiltroInventario): Promise<Paginado<Recurso>> {
-    const items = db.recursos.filter(
-        (r) =>
-            contiene([r.nombre], f.busqueda) &&
-            (f.categoria === 'todas' || r.categoria === f.categoria) &&
-            (f.ubicacion === 'todas' || r.ubicacion === f.ubicacion) &&
-            (!f.soloStockBajo || r.cantidad < r.minimo),
-    );
-    return responder(paginar(items, f.page, PAGE_SIZE - 1), vacioPaginado);
-}
-
-export function obtenerResumenInventario(): Promise<InventarioResumen & { stockBajo: number }> {
-    const data = { ...db.inventarioResumen, stockBajo: db.recursos.filter((r) => r.cantidad < r.minimo).length };
-    return responder(data, { ...data, registrados: 0, categorias: 0, stockBajo: 0 });
-}
-
-export function categoriasInventario() {
-    return [...new Set(db.recursos.map((r) => r.categoria))].sort();
-}
-
-export function ubicacionesInventario() {
-    return [...new Set(db.recursos.map((r) => r.ubicacion))].sort();
 }
 
 export function obtenerAmbulancia(): Promise<AmbulanciaEstado> {

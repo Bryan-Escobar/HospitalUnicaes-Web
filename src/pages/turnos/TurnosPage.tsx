@@ -13,6 +13,7 @@ import { fechaHospital, instanteHospital, lunesDe, sumarDias } from '@/lib/fecha
 import { cn } from '@/lib/utils';
 import { listarTurnos } from '@/services/turnos.service';
 import { TIPOS_TURNO, type Turno } from '@/types/turnos.types';
+import { SelectorPersonal, type OpcionPersonal } from './SelectorPersonal';
 import { TurnoFormDialog } from './TurnoFormDialog';
 
 const formatoDia = new Intl.DateTimeFormat('es-SV', { weekday: 'short', day: 'numeric', timeZone: 'UTC' });
@@ -79,17 +80,39 @@ export default function TurnosPage() {
     const [vista, setVista] = useState<'persona' | 'area'>('persona');
     const [filtroArea, setFiltroArea] = useState('');
     const [filtroTipo, setFiltroTipo] = useState('');
+    const [filtroPersonas, setFiltroPersonas] = useState<OpcionPersonal[]>([]);
     const [formularioAbierto, setFormularioAbierto] = useState(false);
     const [turnoGuardado, setTurnoGuardado] = useState(false);
     const semana = useResource(() => listarTurnos(lunes, sumarDias(lunes, 7)), [lunes]);
     const turnos = semana.data ?? [];
     const areas = [...new Set(turnos.map((t) => t.area))].sort((a, b) => a.localeCompare(b, 'es'));
     const tipos = [...new Set(turnos.map((t) => t.tipo_personal))].sort((a, b) => a.localeCompare(b, 'es'));
+    const personas = new Map(filtroPersonas.map((p) => [p.id, p]));
+    for (const turno of turnos) {
+        personas.set(turno.personal_id, {
+            id: turno.personal_id,
+            nombre: `${turno.nombres} ${turno.apellidos}`,
+            detalle: turno.tipo_personal,
+        });
+    }
+    const opcionesPersonas = [...personas.values()].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+    const idsSeleccionados = new Set(filtroPersonas.map((p) => p.id));
     const filas = agruparTurnos(
-        turnos.filter((t) => (!filtroArea || t.area === filtroArea) && (!filtroTipo || t.tipo_personal === filtroTipo)),
+        turnos.filter((t) =>
+            (!filtroArea || t.area === filtroArea) &&
+            (!filtroTipo || t.tipo_personal === filtroTipo) &&
+            (idsSeleccionados.size === 0 || idsSeleccionados.has(t.personal_id)),
+        ),
         vista === 'area',
     );
     const estadoTabla = semana.status === 'success' && filas.length === 0 ? 'empty' : semana.status;
+    const periodo = formatoSemana.formatRange(fechaUTC(lunes), fechaUTC(sumarDias(lunes, 6)));
+
+    function alternarPersona(persona: OpcionPersonal) {
+        setFiltroPersonas((seleccion) => seleccion.some((p) => p.id === persona.id)
+            ? seleccion.filter((p) => p.id !== persona.id)
+            : [...seleccion, persona]);
+    }
 
     function cambiarSemana(fecha: string) {
         setLunes(fecha);
@@ -127,9 +150,11 @@ export default function TurnosPage() {
         ...Array.from({ length: 7 }, (_, i): Column<FilaTurnos> => {
             const fecha = sumarDias(lunes, i);
             const dia = formatoDia.format(fechaUTC(fecha));
+            const esHoy = fecha === hoy;
             return {
-                header: fecha === hoy ? `${dia} · hoy` : dia,
-                className: cn('px-2 align-top', fecha === hoy && 'bg-primary-soft/40'),
+                header: esHoy ? `${dia} · hoy` : dia,
+                className: cn('px-2 align-top', esHoy && 'border-x border-primary-200 bg-primary-100'),
+                headerClassName: esHoy ? 'bg-primary-ink font-bold text-primary-soft align-middle' : undefined,
                 skeleton: 'w-full h-7',
                 cell: (f) => <CeldaTurnos turnos={f.turnos} fecha={fecha} />,
             };
@@ -138,11 +163,13 @@ export default function TurnosPage() {
 
     return (
         <>
-            <PageHeader
-                title="Turnos"
-                subtitle={formatoSemana.formatRange(fechaUTC(lunes), fechaUTC(sumarDias(lunes, 6)))}
-                actions={
-                    <>
+            <PageHeader title="Turnos" actions={nuevoTurno} />
+            <section aria-label="Semana de turnos" className="mb-4 rounded-lg border border-border bg-card px-4 py-4 sm:px-5">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <h2 aria-live="polite" className="text-2xl font-semibold tracking-tight text-primary-ink sm:text-3xl">
+                        {periodo}
+                    </h2>
+                    <div className="flex flex-wrap items-center gap-2">
                         <Button variant="outline" onClick={() => cambiarSemana(sumarDias(lunes, -7))}>
                             <ChevronLeft /> Semana anterior
                         </Button>
@@ -152,10 +179,9 @@ export default function TurnosPage() {
                         <Button variant="outline" onClick={() => cambiarSemana(sumarDias(lunes, 7))}>
                             Siguiente <ChevronRight />
                         </Button>
-                        {nuevoTurno}
-                    </>
-                }
-            />
+                    </div>
+                </div>
+            </section>
             <Toolbar>
                 <SegmentedControl
                     label="Agrupar turnos"
@@ -174,6 +200,18 @@ export default function TurnosPage() {
                     <option value="">Todos los tipos de personal</option>
                     {tipos.map((t) => <option key={t}>{t}</option>)}
                 </Select>
+                <SelectorPersonal
+                    etiqueta="Filtrar por persona"
+                    texto={filtroPersonas.length === 0
+                        ? 'Todas las personas'
+                        : filtroPersonas.length === 1
+                            ? personas.get(filtroPersonas[0].id)!.nombre
+                            : `${filtroPersonas.length} personas seleccionadas`}
+                    opciones={opcionesPersonas}
+                    seleccion={[...idsSeleccionados]}
+                    onSelect={alternarPersona}
+                    onClear={() => setFiltroPersonas([])}
+                />
             </Toolbar>
 
             {turnoGuardado && <Alert title="Turno registrado" className="mb-4" />}

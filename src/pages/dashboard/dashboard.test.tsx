@@ -54,7 +54,7 @@ describe('Dashboard', () => {
         const bajoMinimo = await screen.findByRole('link', { name: /Ítems bajo el stock mínimo/ });
         expect(bajoMinimo).toHaveAttribute('href', '/inventario?stock=bajo');
         expect(within(bajoMinimo).getByText('3')).toBeInTheDocument();
-        expect(screen.getByRole('link', { name: /Lotes vencidos/ })).toHaveAttribute('href', '/inventario');
+        expect(screen.getByRole('link', { name: /Lotes vencidos/ })).toHaveAttribute('href', '/inventario?vista=caducidad&alerta=vencido');
         expect(screen.getByRole('link', { name: /Vencen en 15 días/ })).toHaveTextContent('2');
         expect(screen.getByRole('link', { name: /Vencen en 16 a 30 días/ })).toHaveTextContent('0');
     });
