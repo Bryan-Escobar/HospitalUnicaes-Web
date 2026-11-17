@@ -19,27 +19,28 @@ import { fechaHoraLaboratorio, nombreCompleto } from './formato-laboratorio';
 import { OrdenLaboratorioDialog } from './OrdenLaboratorioDialog';
 
 const estados = ['todas', ...ESTADOS_LABORATORIO] as const;
-const filtroSinFechas: FiltroLaboratorio = {
-    estado: 'todas', doctor: '', desde: '', hasta: '', busqueda: '', page: 1,
-};
+const filtrosIniciales = {
+    estado: 'todas', doctor: '', paciente: '', examen: '', page: 1,
+} satisfies Partial<FiltroLaboratorio>;
 
 export default function LaboratorioPage() {
-    const [filtro, setFiltro] = useState(() => {
+    const [filtro, setFiltro] = useState<FiltroLaboratorio>(() => {
         const hoy = fechaHospital();
-        return { ...filtroSinFechas, desde: hoy, hasta: hoy };
+        return { ...filtrosIniciales, desde: hoy, hasta: hoy };
     });
     const [ordenId, setOrdenId] = useState<string | null>(null);
-    const { doctor, desde, hasta, busqueda } = filtro;
+    const { doctor, desde, hasta, paciente, examen } = filtro;
     const rangoInvalido = Boolean(desde && hasta && desde > hasta);
     const ordenes = useResource(() => rangoInvalido ? Promise.resolve(null) : listarOrdenes(filtro), [filtro]);
     const contadores = useResource(
-        () => rangoInvalido ? Promise.resolve(null) : contarOrdenes({ doctor, desde, hasta, busqueda }),
-        [doctor, desde, hasta, busqueda],
+        () => rangoInvalido ? Promise.resolve(null) : contarOrdenes({ doctor, desde, hasta, paciente, examen }),
+        [doctor, desde, hasta, paciente, examen],
     );
     const doctores = useResource(listarDoctoresLaboratorio);
     const conteo = contadores.status === 'success' ? contadores.data : null;
     const total = conteo && conteo.pendiente + conteo.en_proceso + conteo.completado;
-    const filtrado = filtro.estado !== 'todas' || Boolean(doctor || desde || hasta || busqueda);
+    const hayFiltros = filtro.estado !== 'todas' || Boolean(doctor || paciente || examen);
+    const filtrado = hayFiltros || Boolean(desde || hasta);
     const hoy = fechaHospital();
     const soloHoy = desde === hoy && hasta === hoy;
 
@@ -91,11 +92,18 @@ export default function LaboratorioPage() {
             </Toolbar>
             <Toolbar>
                 <SearchInput
-                    className="w-80 max-w-full"
-                    placeholder="Buscar por paciente o examen"
-                    aria-label="Buscar por paciente o examen"
-                    value={busqueda}
-                    onChange={(e) => actualizarFiltro({ busqueda: e.target.value })}
+                    className="w-64 max-w-full"
+                    placeholder="Buscar por paciente"
+                    aria-label="Buscar por paciente"
+                    value={paciente}
+                    onChange={(e) => actualizarFiltro({ paciente: e.target.value })}
+                />
+                <SearchInput
+                    className="w-64 max-w-full"
+                    placeholder="Buscar por nombre del examen"
+                    aria-label="Buscar por nombre del examen"
+                    value={examen}
+                    onChange={(e) => actualizarFiltro({ examen: e.target.value })}
                 />
             </Toolbar>
             <Toolbar className="items-end">
@@ -124,8 +132,8 @@ export default function LaboratorioPage() {
                 {!soloHoy && (
                     <Button variant="outline" onClick={() => actualizarFiltro({ desde: hoy, hasta: hoy })}>Hoy</Button>
                 )}
-                {filtrado && (
-                    <Button variant="ghost" onClick={() => setFiltro(filtroSinFechas)}>Limpiar filtros</Button>
+                {hayFiltros && (
+                    <Button variant="ghost" onClick={() => actualizarFiltro(filtrosIniciales)}>Limpiar filtros</Button>
                 )}
             </Toolbar>
 

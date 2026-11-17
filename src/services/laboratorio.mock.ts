@@ -42,16 +42,21 @@ export function ordenesDemo(hoy = fechaHospital()): DetalleOrdenLaboratorio[] {
 }
 
 export function filtrarOrdenes(rango: RangoLaboratorio) {
-    const terminos = terminosLaboratorio(rango.busqueda.toLowerCase());
-    return ordenesDemo().filter((orden) => {
+    const terminosPaciente = terminosLaboratorio(rango.paciente.toLowerCase());
+    const terminosExamen = terminosLaboratorio(rango.examen.toLowerCase());
+    return ordenesDemo().map((orden) => ({
+        ...orden,
+        examenes: orden.examenes.filter(({ examen }) =>
+            terminosExamen.every((termino) => examen.nombre.toLowerCase().includes(termino))),
+    })).filter((orden) => {
         const fecha = orden.fecha_solicitud.slice(0, 10);
         const { nombres, apellidos } = orden.consulta.expediente.paciente;
-        const nombre = `${nombres} ${apellidos}`.toLowerCase();
+        const nombre = nombres.toLowerCase();
+        const apellido = apellidos.toLowerCase();
         return (!rango.doctor || orden.consulta.doctor.id === rango.doctor)
             && (!rango.desde || fecha >= rango.desde)
             && (!rango.hasta || fecha <= rango.hasta)
-            && (terminos.every((termino) => nombre.includes(termino))
-                || orden.examenes.some(({ examen: { nombre } }) =>
-                    terminos.every((termino) => nombre.toLowerCase().includes(termino))));
+            && terminosPaciente.every((termino) => nombre.includes(termino) || apellido.includes(termino))
+            && (terminosExamen.length === 0 || orden.examenes.length > 0);
     });
 }
