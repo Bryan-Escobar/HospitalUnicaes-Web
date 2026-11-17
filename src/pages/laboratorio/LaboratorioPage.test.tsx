@@ -91,7 +91,7 @@ describe('Laboratorio', () => {
         expect(screen.queryByRole('table', { name: 'Órdenes de laboratorio' })).toBeNull();
     });
 
-    it('ofrece la descarga por examen y solicita un enlace firmado al pulsar el botón', async () => {
+    it('solicita enlaces firmados para ver y descargar adjuntos por examen', async () => {
         entorno.demo = false;
         const persona = { id: 'p1', nombres: 'Ana', apellidos: 'Rivas' };
         const fecha = '2026-11-14T15:00:00Z';
@@ -105,6 +105,9 @@ describe('Laboratorio', () => {
         entorno.apiFetch.mockResolvedValueOnce({
             id: 'orden', paciente: persona, doctor: persona, fecha_solicitud: fecha, estado: 'completado', examenes,
         }).mockRejectedValueOnce(new Error('Error de conexión'))
+            .mockResolvedValueOnce({ url: 'https://storage.example/resultado.png?token=firmado' })
+            .mockRejectedValueOnce(new Error('403'))
+            .mockResolvedValueOnce({ url: 'https://storage.example/resultado.pdf?token=firmado' })
             .mockResolvedValueOnce({ url: 'https://storage.example/resultado.png?token=firmado' });
         const descarga = vi.fn<(href: string) => void>();
         vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
@@ -122,6 +125,23 @@ describe('Laboratorio', () => {
         await waitFor(() => expect(descarga).toHaveBeenCalledTimes(1));
         expect(entorno.apiFetch).toHaveBeenLastCalledWith('/laboratorio/ordenes/orden/examenes/e2/resultado/archivo');
         expect(descarga).toHaveBeenCalledWith('https://storage.example/resultado.png?token=firmado&download=');
+
+        const verPdf = screen.getByRole('button', { name: 'Ver PDF de Hemograma' });
+        expect(screen.queryByRole('button', { name: /Ver.*Examen de orina/ })).toBeNull();
+        fireEvent.click(verPdf);
+        expect(await screen.findByRole('alert')).toHaveTextContent('No se pudo abrir el adjunto');
+        expect(screen.queryByTitle('PDF de Hemograma')).toBeNull();
+        fireEvent.click(verPdf);
+        expect(await screen.findByTitle('PDF de Hemograma'))
+            .toHaveAttribute('src', 'https://storage.example/resultado.pdf?token=firmado');
+        expect(screen.getByRole('link', { name: 'Abrir PDF en otra pestaña' })).toHaveAttribute('target', '_blank');
+        expect(entorno.apiFetch).toHaveBeenLastCalledWith('/laboratorio/ordenes/orden/examenes/e1/resultado/archivo');
+
+        fireEvent.click(screen.getByRole('button', { name: 'Ver imagen de Química sanguínea' }));
+        expect(await screen.findByRole('img', { name: 'Resultado de Química sanguínea' }))
+            .toHaveAttribute('src', 'https://storage.example/resultado.png?token=firmado');
+        fireEvent.click(screen.getByRole('button', { name: 'Ocultar vista de Química sanguínea' }));
+        expect(screen.queryByRole('img', { name: 'Resultado de Química sanguínea' })).toBeNull();
     });
 
     it('restringe la ruta a administración', async () => {
