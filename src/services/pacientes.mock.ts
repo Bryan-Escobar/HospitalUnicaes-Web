@@ -1,4 +1,3 @@
-import { inicialesApellido } from '@/lib/alfabeto-pacientes';
 import { pacientes } from './mock-data';
 import type { CitaPaciente, FichaPaciente, FiltroPacientes, PacienteListado } from '@/types/pacientes.types';
 
@@ -28,12 +27,10 @@ const fichas: FichaPaciente[] = pacientes.map((paciente, i) => {
 });
 
 export function listarPacientes(filtro: FiltroPacientes, porPagina: number) {
-    const iniciales = inicialesApellido(filtro.inicialApellido);
     const terminos = filtro.busqueda.toLocaleLowerCase('es-SV').normalize('NFC').match(/[\p{L}\p{M}\p{N}'-]+/gu) ?? [];
     const resultados = fichas.filter((p) => {
         const campos = [p.nombres, p.apellidos, p.documento_identidad ?? ''];
         return terminos.every((termino) => campos.some((campo) => campo.toLocaleLowerCase('es-SV').includes(termino))) &&
-            (iniciales.length === 0 || iniciales.includes(p.apellidos.normalize('NFC').toUpperCase()[0])) &&
             (filtro.estado === 'todos' || p.activo === (filtro.estado === 'activos')) &&
             (filtro.hospitalizacion === 'todas' || (p.hospitalizaciones.length > 0) === (filtro.hospitalizacion === 'hospitalizados'));
     });

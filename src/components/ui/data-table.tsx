@@ -28,6 +28,7 @@ function DataTable<T>({
   skeletonRows = 8,
   fixedLayout,
   className,
+  groupBy,
 }: {
   // Columnas de ancho fijo/igual (p. ej. la grilla semanal de turnos)
   fixedLayout?: boolean
@@ -41,7 +42,18 @@ function DataTable<T>({
   footer?: React.ReactNode
   skeletonRows?: number
   className?: string
+  groupBy?: (row: T) => string
 }) {
+  const groups = new Map<string, T[]>()
+  if (status === "success") {
+    for (const row of rows ?? []) {
+      const group = groupBy?.(row) ?? ""
+      const groupRows = groups.get(group)
+      if (groupRows) groupRows.push(row)
+      else groups.set(group, [row])
+    }
+  }
+
   return (
     <div className={cn("overflow-hidden rounded-xl border border-border bg-card", className)}>
       <div className="overflow-x-auto">
@@ -65,7 +77,7 @@ function DataTable<T>({
               ))}
             </tr>
           </thead>
-          <tbody>
+          {status !== "success" && <tbody>
             {status === "loading" &&
               Array.from({ length: skeletonRows }, (_, r) => (
                 <tr key={r} className="h-[54px] border-t border-border">
@@ -93,8 +105,18 @@ function DataTable<T>({
               </tr>
             )}
 
-            {status === "success" &&
-              rows?.map((row) => (
+          </tbody>}
+          {Array.from(groups, ([group, groupRows]) => (
+            <tbody key={group}>
+              {groupBy && (
+                <tr className="border-t border-border bg-surface-muted">
+                  <th scope="rowgroup" colSpan={columns.length} tabIndex={-1} data-row-group={group}
+                    className="scroll-mt-4 px-4 py-2 text-base font-semibold">
+                    {group}
+                  </th>
+                </tr>
+              )}
+              {groupRows.map((row) => (
                 <tr key={rowKey(row)} className="h-[54px] border-t border-border transition-colors hover:bg-surface-muted/70">
                   {columns.map((c, i) => (
                     <td key={i} className={cn("px-4 py-2 text-foreground", c.className)}>
@@ -103,7 +125,8 @@ function DataTable<T>({
                   ))}
                 </tr>
               ))}
-          </tbody>
+            </tbody>
+          ))}
         </table>
       </div>
       {status === "success" && footer}

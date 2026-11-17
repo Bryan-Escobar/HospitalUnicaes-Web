@@ -1,6 +1,5 @@
 export interface FiltroPacientes {
     busqueda: string;
-    inicialApellido?: string;
     estado: 'todos' | 'activos' | 'inactivos';
     hospitalizacion: 'todas' | 'hospitalizados' | 'ambulatorios';
     page: number;
