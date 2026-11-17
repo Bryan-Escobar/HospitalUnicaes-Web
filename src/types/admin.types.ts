@@ -3,7 +3,6 @@
 
 export type EstadoLaboratorio = "pendiente" | "en_proceso" | "completado"
 export type EstadoAmbulancia = "disponible" | "en_servicio" | "en_mantenimiento"
-export type ResultadoServicio = "finalizado" | "rechazada" | "en_mantenimiento" | "no_disponible"
 
 export interface Paginado<T> {
   items: T[]
@@ -39,31 +38,6 @@ export interface Planta {
 export interface MapaPlantas {
   plantas: Planta[]
   ultimoCambio: string | null
-}
-
-export interface AmbulanciaEstado {
-  estado: EstadoAmbulancia
-  desde: string
-  servicio: {
-    paciente: string
-    ubicacion: string
-    despachadaPor: string
-    tipoEmergencia: string
-    solicitada: string
-    conductor: string
-  } | null
-  solicitudesPendientes: { id: string; tipo: string; solicitada: string; origen: string }[]
-}
-
-export interface ServicioBitacora {
-  id: string
-  fecha: string
-  inicioFin: string
-  tipo: string
-  paciente: string | null
-  despacho: string
-  duracion: string | null
-  resultado: ResultadoServicio
 }
 
 export interface Reportes {

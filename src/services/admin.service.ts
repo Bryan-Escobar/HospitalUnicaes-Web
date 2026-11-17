@@ -3,13 +3,9 @@
 // sin tocar las pantallas.
 import { useDemoStore } from '@/store/useDemoStore';
 import type {
-    AmbulanciaEstado,
     MapaPlantas,
-    Paginado,
     PerfilAdmin,
     Reportes,
-    ResultadoServicio,
-    ServicioBitacora,
 } from '@/types/admin.types';
 import * as db from './mock-data';
 
@@ -27,12 +23,6 @@ export function responder<T>(data: T, vacio: T): Promise<T> {
     });
 }
 
-function paginar<T>(items: T[], page: number, pageSize: number): Paginado<T> {
-    return { items: items.slice((page - 1) * pageSize, page * pageSize), total: items.length };
-}
-
-const vacioPaginado = { items: [], total: 0 };
-
 export const PAGE_SIZE = 10;
 
 export function obtenerMapa(): Promise<MapaPlantas> {
@@ -45,34 +35,6 @@ export function obtenerMapa(): Promise<MapaPlantas> {
         })),
     };
     return responder(db.mapa, libres);
-}
-
-export function obtenerAmbulancia(): Promise<AmbulanciaEstado> {
-    return responder(db.ambulancia, { estado: 'disponible', desde: '06:00', servicio: null, solicitudesPendientes: [] });
-}
-
-export interface FiltroBitacora {
-    estado: ResultadoServicio | 'todos';
-    tipo: string;
-    despacho: string;
-    page: number;
-}
-
-export function listarBitacora(f: FiltroBitacora): Promise<Paginado<ServicioBitacora>> {
-    const items = db.bitacora.filter(
-        (s) =>
-            (f.estado === 'todos' || s.resultado === f.estado) &&
-            (f.tipo === 'todos' || s.tipo === f.tipo) &&
-            (f.despacho === 'todos' || s.despacho === f.despacho),
-    );
-    return responder(paginar(items, f.page, PAGE_SIZE), vacioPaginado);
-}
-
-export function opcionesBitacora() {
-    return {
-        tipos: [...new Set(db.bitacora.map((s) => s.tipo))].sort(),
-        despachos: [...new Set(db.bitacora.map((s) => s.despacho))].sort(),
-    };
 }
 
 export function obtenerReportes(): Promise<Reportes> {
