@@ -77,21 +77,25 @@ it('registra un turno nocturno, muestra ambas partes y rechaza otro turno que se
 
     const formulario = await abrirFormulario();
     fireEvent.change(formulario.getByLabelText('Fecha de inicio'), { target: { value: domingo } });
-    fireEvent.change(formulario.getByLabelText('Hora de inicio'), { target: { value: '19:00' } });
-    fireEvent.change(formulario.getByLabelText('Hora de fin'), { target: { value: '07:00' } });
+    const inicio = formulario.getByLabelText('Hora de inicio');
+    fireEvent.change(inicio, { target: { value: '19:00' } });
+    expect(inicio).toBeInvalid();
+    fireEvent.change(inicio, { target: { value: '7:00 PM' } });
+    fireEvent.change(formulario.getByLabelText('Hora de fin'), { target: { value: '7:00 AM' } });
+    expect(formulario.getByText('El turno terminará al día siguiente.')).toBeInTheDocument();
     fireEvent.click(formulario.getByRole('button', { name: 'Guardar turno' }));
 
     expect(await screen.findByText('Turno registrado')).toBeInTheDocument();
-    expect(await screen.findByText('19:00–24:00')).toBeInTheDocument();
+    expect((await screen.findByText('7:00 PM')).parentElement).toHaveTextContent('7:00 PM – 12:00 AM');
     fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
-    expect(await screen.findByText('00:00–07:00')).toBeInTheDocument();
+    expect((await screen.findByText('12:00 AM')).parentElement).toHaveTextContent('12:00 AM – 7:00 AM');
 
     const siguiente = await abrirFormulario();
     expect(siguiente.getByLabelText('Fecha de inicio')).toHaveValue(lunes);
-    fireEvent.change(siguiente.getByLabelText('Hora de inicio'), { target: { value: '06:00' } });
-    fireEvent.change(siguiente.getByLabelText('Hora de fin'), { target: { value: '08:00' } });
+    fireEvent.change(siguiente.getByLabelText('Hora de inicio'), { target: { value: '6:00 AM' } });
+    fireEvent.change(siguiente.getByLabelText('Hora de fin'), { target: { value: '8:00 AM' } });
     fireEvent.click(siguiente.getByRole('button', { name: 'Guardar turno' }));
 
     expect(await siguiente.findByRole('alert')).toHaveTextContent('Solapamiento de turnos');
-    expect(siguiente.getByLabelText('Hora de inicio')).toHaveValue('06:00');
+    expect(siguiente.getByLabelText('Hora de inicio')).toHaveValue('6:00 AM');
 }, 10_000);

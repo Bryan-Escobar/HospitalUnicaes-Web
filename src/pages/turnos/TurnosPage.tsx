@@ -9,7 +9,7 @@ import { DataTable, type Column } from '@/components/ui/data-table';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { Select } from '@/components/ui/select';
 import { useResource } from '@/hooks/useResource';
-import { fechaHospital, instanteHospital, lunesDe, sumarDias } from '@/lib/fechas-hospital';
+import { fechaHospital, horaLegible, instanteHospital, lunesDe, sumarDias } from '@/lib/fechas-hospital';
 import { cn } from '@/lib/utils';
 import { listarTurnos } from '@/services/turnos.service';
 import { TIPOS_TURNO, type Turno } from '@/types/turnos.types';
@@ -59,11 +59,15 @@ function CeldaTurnos({ turnos, fecha }: { turnos: Turno[]; fecha: string }) {
     return (
         <ul className="space-y-1">
             {delDia.map((turno) => {
-                const inicio = Date.parse(turno.inicio) < inicioDia ? '00:00' : turno.hora_inicio.slice(0, 5);
-                const fin = Date.parse(turno.fin) >= finDia ? '24:00' : turno.hora_fin.slice(0, 5);
+                const inicio = Date.parse(turno.inicio) < inicioDia ? '00:00' : turno.hora_inicio;
+                const fin = Date.parse(turno.fin) >= finDia ? '00:00' : turno.hora_fin;
                 return (
                     <li key={turno.id} className="rounded-sm border border-primary-200 bg-primary-soft px-1.5 py-1 text-xs leading-4 text-primary-ink">
-                        <span className="block whitespace-nowrap font-semibold tabular">{inicio}–{fin}</span>
+                        <span className="block font-semibold tabular">
+                            <span className="whitespace-nowrap">{horaLegible(inicio)}</span>
+                            {' – '}
+                            <span className="whitespace-nowrap">{horaLegible(fin)}</span>
+                        </span>
                         <span className="block break-words">{turno.area}</span>
                         <span className="block">{TIPOS_TURNO[turno.tipo_turno]}</span>
                     </li>

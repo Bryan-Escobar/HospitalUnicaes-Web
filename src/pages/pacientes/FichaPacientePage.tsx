@@ -11,16 +11,16 @@ import { Pagination } from '@/components/ui/pagination';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { useResource } from '@/hooks/useResource';
+import { fechaHoraLegible } from '@/lib/fechas-hospital';
 import { CITAS_POR_PAGINA, listarCitasPaciente, obtenerFichaPaciente } from '@/services/pacientes.service';
 import type { CitaPaciente, FichaPaciente } from '@/types/pacientes.types';
 
 const formatoNacimiento = new Intl.DateTimeFormat('es-SV', { dateStyle: 'medium', timeZone: 'UTC' });
-const formatoCita = new Intl.DateTimeFormat('es-SV', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'America/El_Salvador' });
 const etiquetasSexo = { masculino: 'Masculino', femenino: 'Femenino', otro: 'Otro' };
 const columnasCitas: Column<CitaPaciente>[] = [
     {
         header: 'Fecha y hora',
-        cell: (cita) => <time dateTime={cita.fecha_hora}>{formatoCita.format(new Date(cita.fecha_hora))}</time>,
+        cell: (cita) => <time dateTime={cita.fecha_hora}>{fechaHoraLegible(cita.fecha_hora)}</time>,
     },
     { header: 'Profesional', cell: (cita) => `${cita.doctor_nombres} ${cita.doctor_apellidos}` },
     { header: 'Estado', cell: (cita) => <StatusBadge estado={cita.estado} /> },

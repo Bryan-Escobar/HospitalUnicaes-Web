@@ -31,41 +31,56 @@ const formatoFechaHora = new Intl.DateTimeFormat('sv-SE', {
     hourCycle: 'h23',
 });
 
-// Valor de un <input type="datetime-local"> (AAAA-MM-DDTHH:mm) en hora del hospital.
+// Fecha y hora civil (AAAA-MM-DDTHH:mm) en la zona del hospital.
 export function fechaHoraHospital(instante: string | Date = new Date()): string {
     return formatoFechaHora.format(new Date(instante)).replace(' ', 'T');
 }
 
-// De un datetime-local en hora del hospital a ISO 8601 con su desfase, como lo pide la API.
+// De una fecha y hora civil a ISO 8601 con el desfase del hospital.
 export function instanteDesdeFechaHora(fechaHora: string): string {
     return `${fechaHora}:00-06:00`;
 }
 
-const formatoLegible = new Intl.DateTimeFormat('es-SV', {
-    timeZone: zonaHospital,
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-});
-
-// «14 nov 2026, 8:00 a. m.», siempre en hora del hospital.
-export function fechaHoraLegible(instante: string | Date): string {
-    return formatoLegible.format(new Date(instante));
-}
-
+const formatoLegible = new Intl.DateTimeFormat('es-SV', { timeZone: zonaHospital, dateStyle: 'medium' });
+const formatoNumerico = new Intl.DateTimeFormat('es-SV', { timeZone: zonaHospital, dateStyle: 'short' });
 const formatoCorto = new Intl.DateTimeFormat('es-SV', {
     timeZone: zonaHospital,
     day: 'numeric',
     month: 'short',
-    hour: 'numeric',
-    minute: '2-digit',
 });
 
-// «14 nov, 8:00 a. m.» (con el año solo si no es el actual), para tablas.
+export const patronHora12 = String.raw`(0?[1-9]|1[0-2]):([0-5][0-9])\s*([aApP])[mM]`;
+const formatoHora12 = new RegExp(`^${patronHora12}$`);
+
+export function horaLegible(valor: string): string {
+    const [hora, minutos] = valor.split(':');
+    const horas = Number(hora) % 24;
+    return `${horas % 12 || 12}:${minutos} ${horas < 12 ? 'AM' : 'PM'}`;
+}
+
+export function horaEn24(valor: string): string {
+    const partes = formatoHora12.exec(valor);
+    if (!partes) return '';
+    const [, hora, minutos, periodo] = partes;
+    const horas = Number(hora) % 12 + (periodo.toUpperCase() === 'P' ? 12 : 0);
+    return `${String(horas).padStart(2, '0')}:${minutos}`;
+}
+
+function mostrarFechaHora(fecha: Date, formato: Intl.DateTimeFormat): string {
+    return `${formato.format(fecha)}, ${horaLegible(fechaHoraHospital(fecha).slice(11))}`;
+}
+
+export function fechaHoraLegible(instante: string | Date): string {
+    return mostrarFechaHora(new Date(instante), formatoLegible);
+}
+
+export function fechaHoraNumerica(instante: string | Date): string {
+    return mostrarFechaHora(new Date(instante), formatoNumerico);
+}
+
+// «14 nov, 8:00 AM» (con el año solo si no es el actual), para tablas.
 export function fechaHoraCorta(instante: string | Date, ahora = new Date()): string {
     const fecha = new Date(instante);
     const mismoAnio = formatoFecha.format(fecha).slice(0, 4) === formatoFecha.format(ahora).slice(0, 4);
-    return mismoAnio ? formatoCorto.format(fecha) : formatoLegible.format(fecha);
+    return mostrarFechaHora(fecha, mismoAnio ? formatoCorto : formatoLegible);
 }
