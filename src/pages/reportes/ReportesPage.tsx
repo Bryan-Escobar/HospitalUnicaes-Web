@@ -1,138 +1,209 @@
-import { useState } from 'react';
-import type * as React from 'react';
+import { useState, type FormEvent, type ReactNode } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { ChartColumn, Download } from 'lucide-react';
 
-import { ChartDataTable, ColumnChart, HorizontalBars, LabStatusBars, LineChart } from '@/components/charts';
-import { PageHeader } from '@/components/layout/AdminLayout';
-import { ResourceView } from '@/components/ResourceView';
+import { ChartDataTable, HorizontalBars, LabStatusBars, LineChart } from '@/components/charts';
+import { PageHeader, Toolbar } from '@/components/layout/AdminLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { EmptyState, ErrorState } from '@/components/ui/feedback-state';
+import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { estadoLabel } from '@/lib/estados';
-import { selectResource, useResource, type Resource } from '@/hooks/useResource';
-import { obtenerReportes } from '@/services/admin.service';
-import type { EstadoLaboratorio } from '@/types/admin.types';
+import { fechaHospital, sumarDias } from '@/lib/fechas-hospital';
+import { obtenerReportes } from '@/services/reportes.service';
+import { ESTADOS_LABORATORIO } from '@/types/admin.types';
+import { exportarReportes } from './exportar-reportes';
 
-// Tarjeta de gráfica con alternancia «Ver datos» (tabla equivalente, accesible).
-function ChartCard<T>({
+const formatoFecha = new Intl.DateTimeFormat('es-SV', { dateStyle: 'medium', timeZone: 'UTC' });
+const mostrarFecha = (fecha: string) => formatoFecha.format(new Date(`${fecha}T00:00:00Z`));
+
+function ChartCard({
     title,
-    resource,
+    description,
     chart,
     table,
+    empty = false,
+    className,
 }: {
     title: string;
-    resource: Resource<T>;
-    chart: (data: T) => React.ReactNode;
-    table: (data: T) => React.ReactNode;
+    description?: string;
+    chart: ReactNode;
+    table: ReactNode;
+    empty?: boolean;
+    className?: string;
 }) {
     const [verDatos, setVerDatos] = useState(false);
     return (
-        <Card className="min-h-[320px] 2xl:min-h-[400px]">
+        <Card className={className}>
             <CardHeader
                 title={title}
+                description={description}
                 action={
-                    resource.status === 'success' && (
-                        <button
-                            type="button"
-                            className="text-[13px] text-primary hover:underline"
-                            aria-pressed={verDatos}
-                            onClick={() => setVerDatos((v) => !v)}
+                    !empty && (
+                        <Button
+                            size="sm"
+                            variant="ghost"
+                            aria-label={`${verDatos ? 'Ver gráfica' : 'Ver datos'} de ${title}`}
+                            onClick={() => setVerDatos(!verDatos)}
                         >
                             {verDatos ? 'Ver gráfica' : 'Ver datos'}
-                        </button>
+                        </Button>
                     )
                 }
             />
-            <CardContent className="flex flex-1 flex-col pt-5">
-                <ResourceView
-                    resource={resource}
-                    loading={<Skeleton className="h-full min-h-48 w-full rounded-lg" />}
-                    empty={{ icon: ChartColumn, title: 'Sin datos en el periodo', description: 'Cambia el rango de fechas o la planta.' }}
-                >
-                    {(data) => (verDatos ? table(data) : chart(data))}
-                </ResourceView>
+            <CardContent className="pt-5">
+                {empty ? <EmptyState icon={ChartColumn} title="Sin datos en el periodo" compact /> : verDatos ? table : chart}
             </CardContent>
         </Card>
     );
 }
 
-// WEB-12 Reportes y métricas: agregados (sin datos personales) para la toma de decisiones.
 export default function ReportesPage() {
-    const reportes = useResource(obtenerReportes);
-    const ocupacion = selectResource(reportes, (r) => r.ocupacionHistorica, (v) => v.length === 0);
-    const ambulancia = selectResource(reportes, (r) => r.ambulanciaPorSemana, (v) => v.length === 0);
-    const laboratorio = selectResource(reportes, (r) => r.laboratorio, (v) => v.pendiente + v.en_proceso + v.completado === 0);
-    const citas = selectResource(reportes, (r) => r.citasPorDoctor, (v) => v.length === 0);
+    const hoy = fechaHospital();
+    const [rango, setRango] = useState(() => ({ desde: sumarDias(hoy, -29), hasta: hoy }));
+    const [desde, setDesde] = useState(rango.desde);
+    const [hasta, setHasta] = useState(rango.hasta);
+    const [planta, setPlanta] = useState('');
+    const [errorRango, setErrorRango] = useState('');
+    const consulta = useQuery({
+        queryKey: ['reportes', rango],
+        queryFn: ({ signal }) => obtenerReportes(rango, signal),
+        gcTime: 0,
+    });
+
+    const datos = consulta.data;
+    const plantas = [...new Set(datos?.ocupacion.map((fila) => fila.planta))];
+    const plantaVisible = plantas.some((numero) => String(numero) === planta) ? planta : '';
+    const plantasVisibles = plantas.filter((numero) => !plantaVisible || String(numero) === plantaVisible);
+    const ocupacion = (datos?.ocupacion ?? []).filter((fila) => !plantaVisible || String(fila.planta) === plantaVisible);
+    const escalaOcupacion = Math.max(1, ...ocupacion.map((fila) => fila.ocupadas));
+
+    function aplicarFiltros(event: FormEvent<HTMLFormElement>) {
+        event.preventDefault();
+        if (desde > hasta || hasta > hoy || hasta > sumarDias(desde, 365)) {
+            setErrorRango('Elige un rango de hasta 366 días, con la fecha inicial anterior o igual a la final y sin fechas futuras.');
+            return;
+        }
+        setErrorRango('');
+        if (rango.desde === desde && rango.hasta === hasta) void consulta.refetch();
+        else setRango({ desde, hasta });
+    }
 
     return (
         <>
             <PageHeader
                 title="Reportes y métricas"
-                subtitle="Datos agregados desde la API · cada gráfica tiene su tabla en «Ver datos»"
+                subtitle="Indicadores del hospital por periodo"
                 actions={
-                    <>
-                        <Select aria-label="Periodo" defaultValue="30">
-                            <option value="7">Últimos 7 días</option>
-                            <option value="30">Últimos 30 días</option>
-                            <option value="90">Últimos 90 días</option>
-                        </Select>
-                        <Select aria-label="Planta" defaultValue="ambas">
-                            <option value="ambas">Planta: Ambas</option>
-                            <option value="3">Planta 3 · VIP</option>
-                            <option value="2">Planta 2 · semiprivadas</option>
-                        </Select>
-                        <Button variant="outline" disabled={reportes.status !== 'success'}>
-                            <Download /> Exportar
-                        </Button>
-                    </>
+                    <Button
+                        variant="outline"
+                        disabled={!consulta.isSuccess || consulta.isFetching || desde !== rango.desde || hasta !== rango.hasta}
+                        onClick={() => datos && exportarReportes(rango, { ...datos, ocupacion })}
+                    >
+                        <Download /> Exportar CSV
+                    </Button>
                 }
             />
-            <div className="grid grid-cols-2 gap-4">
-                <ChartCard
-                    title="Ocupación histórica (camas ocupadas / 17)"
-                    resource={ocupacion}
-                    chart={(d) => (
-                        <LineChart
-                            label="Ocupación diaria de los últimos 30 días"
-                            capacityLabel="Capacidad 17"
-                            max={17}
-                            data={d.map((x) => ({ label: x.dia, value: x.ocupadas }))}
-                        />
+            <form aria-label="Filtrar reportes por fecha" onSubmit={aplicarFiltros}>
+                <Toolbar className="items-end">
+                    <label className="grid gap-1.5 text-sm font-medium">
+                        Desde
+                        <Input type="date" value={desde} max={hoy} required onChange={(event) => setDesde(event.target.value)} />
+                    </label>
+                    <label className="grid gap-1.5 text-sm font-medium">
+                        Hasta
+                        <Input type="date" value={hasta} max={hoy} required onChange={(event) => setHasta(event.target.value)} />
+                    </label>
+                    <Button type="submit">Aplicar fechas</Button>
+                    {plantas.length > 0 && (
+                        <label className="grid gap-1.5 text-sm font-medium">
+                            Planta
+                            <Select value={plantaVisible} onChange={(event) => setPlanta(event.target.value)}>
+                                <option value="">Todas las plantas</option>
+                                {plantas.map((numero) => <option key={numero} value={numero}>Planta {numero}</option>)}
+                            </Select>
+                        </label>
                     )}
-                    table={(d) => <ChartDataTable headers={['Día', 'Camas ocupadas']} rows={d.map((x) => [x.dia, x.ocupadas])} />}
-                />
-                <ChartCard
-                    title="Servicios de ambulancia por semana"
-                    resource={ambulancia}
-                    chart={(d) => (
-                        <ColumnChart
-                            label="Servicios de ambulancia por semana"
-                            className="min-h-56"
-                            max={Math.max(...d.map((x) => x.servicios))}
-                            data={d.map((x) => ({ label: x.semana, value: x.servicios, highlight: true }))}
-                        />
-                    )}
-                    table={(d) => <ChartDataTable headers={['Semana', 'Servicios']} rows={d.map((x) => [x.semana, x.servicios])} />}
-                />
-                <ChartCard
-                    title="Órdenes de laboratorio por estado"
-                    resource={laboratorio}
-                    chart={(d) => <LabStatusBars conteo={d} layout="inline" />}
-                    table={(d) => (
-                        <ChartDataTable
-                            headers={['Estado', 'Órdenes']}
-                            rows={(Object.keys(d) as EstadoLaboratorio[]).map((k) => [estadoLabel(k), d[k]])}
-                        />
-                    )}
-                />
-                <ChartCard
-                    title="Citas por doctor"
-                    resource={citas}
-                    chart={(d) => <HorizontalBars data={d.map((x) => ({ label: x.doctor, value: x.citas }))} />}
-                    table={(d) => <ChartDataTable headers={['Doctor', 'Citas']} rows={d.map((x) => [x.doctor, x.citas])} />}
-                />
-            </div>
+                </Toolbar>
+                {errorRango && <p role="alert" className="mb-4 text-sm text-danger">{errorRango}</p>}
+            </form>
+            <p className="mb-4 text-sm text-muted-foreground">
+                {mostrarFecha(rango.desde)} – {mostrarFecha(rango.hasta)} · Hora de El Salvador
+            </p>
+            {consulta.isPending && (
+                <div className="grid gap-4 xl:grid-cols-2" role="status">
+                    <span className="sr-only">Cargando reportes…</span>
+                    {Array.from({ length: 4 }, (_, i) => <Skeleton key={i} className="h-56 w-full rounded-xl" />)}
+                </div>
+            )}
+            {consulta.isError && (
+                <ErrorState title="No se pudieron cargar los reportes" onRetry={consulta.refetch} />
+            )}
+            {datos && (
+                <div className="grid items-start gap-4 xl:grid-cols-2">
+                    <ChartCard
+                        title="Ocupación diaria por planta"
+                        className="min-w-0 xl:col-span-2"
+                        description="Camas ocupadas al cierre de cada día. Para hoy se muestra el conteo al momento de la consulta."
+                        empty={ocupacion.length === 0}
+                        chart={
+                            <div className="grid gap-5 lg:grid-cols-2">
+                                {plantasVisibles.map((numero) => {
+                                    const serie = ocupacion.filter((fila) => fila.planta === numero);
+                                    return (
+                                        <div key={numero} className="min-w-0 rounded-lg border border-border p-4">
+                                            <h3 className="mb-4 text-sm font-semibold">Planta {numero}</h3>
+                                            <LineChart
+                                                label={`Camas ocupadas en planta ${numero}`}
+                                                max={escalaOcupacion}
+                                                capacityLabel={`${escalaOcupacion} camas`}
+                                                data={serie.map((fila) => ({ label: mostrarFecha(fila.fecha), value: fila.ocupadas }))}
+                                            />
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        }
+                        table={
+                            <ChartDataTable
+                                headers={['Planta y fecha', 'Camas ocupadas']}
+                                rows={ocupacion.map((fila) => [`Planta ${fila.planta} · ${mostrarFecha(fila.fecha)}`, fila.ocupadas])}
+                            />
+                        }
+                    />
+                    <ChartCard
+                        title="Citas atendidas por doctor"
+                        description="Según la fecha agendada de cada cita."
+                        empty={datos.citas.length === 0}
+                        chart={
+                            <div className="max-h-64 overflow-auto">
+                                <HorizontalBars data={datos.citas.map((fila) => ({ id: fila.doctor_id, label: fila.doctor, value: fila.atendidas }))} />
+                            </div>
+                        }
+                        table={<ChartDataTable headers={['Doctor', 'Citas atendidas']} rows={datos.citas.map((fila) => [fila.doctor, fila.atendidas])} />}
+                    />
+                    <ChartCard
+                        title="Servicios de ambulancia por semana"
+                        description="Servicios finalizados, agrupados por la semana en la que se cerraron."
+                        empty={datos.ambulancia.length === 0}
+                        chart={
+                            <div className="max-h-64 overflow-auto">
+                                <HorizontalBars data={datos.ambulancia.map((fila) => ({ label: `Semana del ${mostrarFecha(fila.semana)}`, value: fila.servicios }))} />
+                            </div>
+                        }
+                        table={<ChartDataTable headers={['Inicio de semana', 'Servicios finalizados']} rows={datos.ambulancia.map((fila) => [mostrarFecha(fila.semana), fila.servicios])} />}
+                    />
+                    <ChartCard
+                        title="Órdenes de laboratorio por estado"
+                        description="Estado actual de las órdenes solicitadas en el periodo."
+                        empty={Object.values(datos.laboratorio).every((cantidad) => cantidad === 0)}
+                        chart={<LabStatusBars conteo={datos.laboratorio} layout="inline" />}
+                        table={<ChartDataTable headers={['Estado', 'Órdenes']} rows={ESTADOS_LABORATORIO.map((estado) => [estadoLabel(estado), datos.laboratorio[estado]])} />}
+                    />
+                </div>
+            )}
         </>
     );
 }

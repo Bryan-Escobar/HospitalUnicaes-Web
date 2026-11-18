@@ -2,10 +2,7 @@
 // latencia de red; cada función se reemplaza por la llamada a HospitalUnicaes-Api (VITE_API_URL)
 // sin tocar las pantallas.
 import { useDemoStore } from '@/store/useDemoStore';
-import type {
-    PerfilAdmin,
-    Reportes,
-} from '@/types/admin.types';
+import type { PerfilAdmin } from '@/types/admin.types';
 import * as db from './mock-data';
 
 const LATENCIA_MS = 450;
@@ -23,15 +20,6 @@ export function responder<T>(data: T, vacio: T): Promise<T> {
 }
 
 export const PAGE_SIZE = 10;
-
-export function obtenerReportes(): Promise<Reportes> {
-    return responder(db.reportes, {
-        ocupacionHistorica: [],
-        ambulanciaPorSemana: [],
-        laboratorio: { pendiente: 0, en_proceso: 0, completado: 0 },
-        citasPorDoctor: [],
-    });
-}
 
 export function obtenerPerfil(): Promise<PerfilAdmin> {
     return responder(db.perfil, db.perfil);
