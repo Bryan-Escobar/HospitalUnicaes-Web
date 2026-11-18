@@ -32,11 +32,24 @@ const registrados: ReturnType<typeof conIntervalo>[] = [];
 export function listar(desde: string, hasta: string, conEjemplos = true): Turno[] {
     const inicio = Date.parse(instanteHospital(desde));
     const fin = Date.parse(instanteHospital(hasta));
+    const ahora = Date.now();
     return (conEjemplos ? [...ejemplos, ...registrados] : registrados).flatMap((t) => {
         if (Date.parse(t.inicio) >= fin || Date.parse(t.fin) <= inicio) return [];
         const p = personalDemo.obtener(t.personal_id);
         if (!p) return [];
-        return [{ ...t, nombres: p.nombres, apellidos: p.apellidos, tipo_personal: p.tipo.nombre }];
+        let asistencia: Turno['estado_asistencia'] = null;
+        if (personalDemo.tipos.some((tipo) => tipo.id === p.tipo.id && tipo.es_medico)) {
+            asistencia = 'sin_conexion';
+            if (ahora < Date.parse(t.inicio)) asistencia = 'programado';
+            else if (ahora >= Date.parse(t.fin)) asistencia = 'ausente';
+        }
+        return [{
+            ...t,
+            nombres: p.nombres,
+            apellidos: p.apellidos,
+            tipo_personal: p.tipo.nombre,
+            estado_asistencia: asistencia,
+        }];
     });
 }
 

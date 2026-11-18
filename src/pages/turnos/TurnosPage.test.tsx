@@ -1,10 +1,51 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { expect, it, vi } from 'vitest';
 
-import { fechaHospital, lunesDe, sumarDias } from '@/lib/fechas-hospital';
+import { fechaHospital, instanteHospital, lunesDe, sumarDias } from '@/lib/fechas-hospital';
+import * as turnosService from '@/services/turnos.service';
+import type { Turno } from '@/types/turnos.types';
 import TurnosPage from './TurnosPage';
 
 vi.mock('@/lib/client', () => ({ isDemoMode: true }));
+
+it('actualiza la asistencia de los bloques sin recargar la página', async () => {
+    vi.useFakeTimers();
+    const fecha = fechaHospital();
+    const turno: Turno = {
+        id: 'turno-asistencia',
+        personal_id: 'doctor-asistencia',
+        nombres: 'Ana',
+        apellidos: 'Pérez',
+        tipo_personal: 'Doctor',
+        area: 'Consulta externa',
+        fecha,
+        hora_inicio: '08:00',
+        hora_fin: '12:00',
+        tipo_turno: 'manana',
+        inicio: instanteHospital(fecha, '08:00'),
+        fin: instanteHospital(fecha, '12:00'),
+        estado_asistencia: 'programado',
+    };
+    const listar = vi.spyOn(turnosService, 'listarTurnos')
+        .mockResolvedValueOnce([turno])
+        .mockResolvedValueOnce([{ ...turno, estado_asistencia: 'sin_conexion' }])
+        .mockResolvedValueOnce([{ ...turno, estado_asistencia: 'presente' }]);
+    const pantalla = render(<TurnosPage />);
+    try {
+        await act(async () => {});
+        expect(screen.getByText('Programado').closest('li')).toHaveClass('bg-muted');
+
+        await act(async () => vi.advanceTimersByTimeAsync(10_000));
+        expect(screen.getByText('Sin conexión').closest('li')).toHaveClass('bg-danger-soft');
+
+        await act(async () => vi.advanceTimersByTimeAsync(10_000));
+        expect(screen.getByText('Presente').closest('li')).toHaveClass('bg-success-soft');
+    } finally {
+        pantalla.unmount();
+        listar.mockRestore();
+        vi.useRealTimers();
+    }
+});
 
 async function abrirFormulario() {
     fireEvent.click(screen.getAllByRole('button', { name: 'Nuevo turno' })[0]);

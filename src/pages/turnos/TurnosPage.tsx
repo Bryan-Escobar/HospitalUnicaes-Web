@@ -12,13 +12,21 @@ import { useResource } from '@/hooks/useResource';
 import { fechaHospital, instanteHospital, lunesDe, sumarDias } from '@/lib/fechas-hospital';
 import { cn } from '@/lib/utils';
 import { listarTurnos } from '@/services/turnos.service';
-import { TIPOS_TURNO, type Turno } from '@/types/turnos.types';
+import { TIPOS_TURNO, type EstadoAsistencia, type Turno } from '@/types/turnos.types';
 import { SelectorPersonal, type OpcionPersonal } from './SelectorPersonal';
 import { TurnoFormDialog } from './TurnoFormDialog';
 
 const formatoDia = new Intl.DateTimeFormat('es-SV', { weekday: 'short', day: 'numeric', timeZone: 'UTC' });
 const formatoSemana = new Intl.DateTimeFormat('es-SV', { dateStyle: 'long', timeZone: 'UTC' });
 const fechaUTC = (fecha: string) => new Date(`${fecha}T00:00:00Z`);
+const ACTUALIZACION_MS = 10_000;
+const ESTILOS_ASISTENCIA: Record<EstadoAsistencia, { etiqueta: string; estilo: string }> = {
+    programado: { etiqueta: 'Programado', estilo: 'border-border bg-muted text-foreground' },
+    presente: { etiqueta: 'Presente', estilo: 'border-success-ink/30 bg-success-soft text-success-ink' },
+    tarde: { etiqueta: 'Llegó tarde', estilo: 'border-warning-border bg-warning-soft text-warning-ink' },
+    sin_conexion: { etiqueta: 'Sin conexión', estilo: 'border-danger/30 bg-danger-soft text-danger' },
+    ausente: { etiqueta: 'Ausente', estilo: 'border-danger/30 bg-danger-soft text-danger' },
+};
 
 interface FilaTurnos {
     id: string;
@@ -61,11 +69,16 @@ function CeldaTurnos({ turnos, fecha }: { turnos: Turno[]; fecha: string }) {
             {delDia.map((turno) => {
                 const inicio = Date.parse(turno.inicio) < inicioDia ? '00:00' : turno.hora_inicio.slice(0, 5);
                 const fin = Date.parse(turno.fin) >= finDia ? '24:00' : turno.hora_fin.slice(0, 5);
+                const asistencia = turno.estado_asistencia ? ESTILOS_ASISTENCIA[turno.estado_asistencia] : null;
                 return (
-                    <li key={turno.id} className="rounded-sm border border-primary-200 bg-primary-soft px-1.5 py-1 text-xs leading-4 text-primary-ink">
+                    <li key={turno.id} className={cn(
+                        'rounded-sm border px-1.5 py-1 text-xs leading-4',
+                        asistencia?.estilo ?? 'border-primary-200 bg-primary-soft text-primary-ink',
+                    )}>
                         <span className="block whitespace-nowrap font-semibold tabular">{inicio}–{fin}</span>
                         <span className="block break-words">{turno.area}</span>
                         <span className="block">{TIPOS_TURNO[turno.tipo_turno]}</span>
+                        {asistencia && <span className="block font-semibold">{asistencia.etiqueta}</span>}
                     </li>
                 );
             })}
@@ -83,7 +96,12 @@ export default function TurnosPage() {
     const [filtroPersonas, setFiltroPersonas] = useState<OpcionPersonal[]>([]);
     const [formularioAbierto, setFormularioAbierto] = useState(false);
     const [turnoGuardado, setTurnoGuardado] = useState(false);
-    const semana = useResource(() => listarTurnos(lunes, sumarDias(lunes, 7)), [lunes]);
+    const semana = useResource(
+        () => listarTurnos(lunes, sumarDias(lunes, 7)),
+        [lunes],
+        undefined,
+        { refreshMs: ACTUALIZACION_MS },
+    );
     const turnos = semana.data ?? [];
     const areas = [...new Set(turnos.map((t) => t.area))].sort((a, b) => a.localeCompare(b, 'es'));
     const tipos = [...new Set(turnos.map((t) => t.tipo_personal))].sort((a, b) => a.localeCompare(b, 'es'));
