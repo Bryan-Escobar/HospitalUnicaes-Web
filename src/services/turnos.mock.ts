@@ -37,12 +37,10 @@ export function listar(desde: string, hasta: string, conEjemplos = true): Turno[
         if (Date.parse(t.inicio) >= fin || Date.parse(t.fin) <= inicio) return [];
         const p = personalDemo.obtener(t.personal_id);
         if (!p) return [];
-        let asistencia: Turno['estado_asistencia'] = null;
-        if (personalDemo.tipos.some((tipo) => tipo.id === p.tipo.id && tipo.es_medico)) {
-            asistencia = 'sin_conexion';
-            if (ahora < Date.parse(t.inicio)) asistencia = 'programado';
-            else if (ahora >= Date.parse(t.fin)) asistencia = 'ausente';
-        }
+        let asistencia: Turno['estado_asistencia'] = 'sin_conexion';
+        if (ahora < Date.parse(t.inicio)) asistencia = 'programado';
+        else if (!p.perfil_id) asistencia = 'sin_cuenta';
+        else if (ahora >= Date.parse(t.fin)) asistencia = 'ausente';
         return [{
             ...t,
             nombres: p.nombres,

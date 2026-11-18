@@ -8,16 +8,16 @@ import TurnosPage from './TurnosPage';
 
 vi.mock('@/lib/client', () => ({ isDemoMode: true }));
 
-it('actualiza la asistencia de los bloques sin recargar la página', async () => {
+it('actualiza la asistencia de recepción sin recargar y muestra el personal sin cuenta', async () => {
     vi.useFakeTimers();
     const fecha = fechaHospital();
     const turno: Turno = {
         id: 'turno-asistencia',
-        personal_id: 'doctor-asistencia',
+        personal_id: 'recepcion-asistencia',
         nombres: 'Ana',
         apellidos: 'Pérez',
-        tipo_personal: 'Doctor',
-        area: 'Consulta externa',
+        tipo_personal: 'Recepcionista',
+        area: 'Recepción',
         fecha,
         hora_inicio: '08:00',
         hora_fin: '12:00',
@@ -26,14 +26,24 @@ it('actualiza la asistencia de los bloques sin recargar la página', async () =>
         fin: instanteHospital(fecha, '12:00'),
         estado_asistencia: 'programado',
     };
+    const enfermeria: Turno = {
+        ...turno,
+        id: 'turno-sin-cuenta',
+        personal_id: 'enfermeria-asistencia',
+        nombres: 'María',
+        tipo_personal: 'Enfermería',
+        area: 'Hospitalización',
+        estado_asistencia: 'sin_cuenta',
+    };
     const listar = vi.spyOn(turnosService, 'listarTurnos')
-        .mockResolvedValueOnce([turno])
-        .mockResolvedValueOnce([{ ...turno, estado_asistencia: 'sin_conexion' }])
-        .mockResolvedValueOnce([{ ...turno, estado_asistencia: 'presente' }]);
+        .mockResolvedValueOnce([turno, enfermeria])
+        .mockResolvedValueOnce([{ ...turno, estado_asistencia: 'sin_conexion' }, enfermeria])
+        .mockResolvedValueOnce([{ ...turno, estado_asistencia: 'presente' }, enfermeria]);
     const pantalla = render(<TurnosPage />);
     try {
         await act(async () => {});
         expect(screen.getByText('Programado').closest('li')).toHaveClass('bg-muted');
+        expect(screen.getByText('Sin cuenta').closest('li')).toHaveClass('bg-muted');
 
         await act(async () => vi.advanceTimersByTimeAsync(10_000));
         expect(screen.getByText('Sin conexión').closest('li')).toHaveClass('bg-danger-soft');

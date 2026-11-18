@@ -26,6 +26,7 @@ const ESTILOS_ASISTENCIA: Record<EstadoAsistencia, { etiqueta: string; estilo: s
     tarde: { etiqueta: 'Llegó tarde', estilo: 'border-warning-border bg-warning-soft text-warning-ink' },
     sin_conexion: { etiqueta: 'Sin conexión', estilo: 'border-danger/30 bg-danger-soft text-danger' },
     ausente: { etiqueta: 'Ausente', estilo: 'border-danger/30 bg-danger-soft text-danger' },
+    sin_cuenta: { etiqueta: 'Sin cuenta', estilo: 'border-border bg-muted text-foreground' },
 };
 
 interface FilaTurnos {
