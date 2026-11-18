@@ -5,6 +5,8 @@ export const TIPOS_TURNO = {
     guardia: 'Guardia',
 };
 
+export type EstadoAsistencia = 'programado' | 'presente' | 'tarde' | 'sin_conexion' | 'ausente' | 'sin_cuenta';
+
 export interface CrearTurnoBody {
     personal_id: string;
     area: string;
@@ -22,4 +24,5 @@ export interface Turno extends CrearTurnoBody {
     tipo_personal: string;
     inicio: string;
     fin: string;
+    estado_asistencia: EstadoAsistencia | null;
 }
