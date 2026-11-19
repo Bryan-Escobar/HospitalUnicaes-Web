@@ -63,6 +63,9 @@ export async function eliminarTurno(id: string): Promise<void> {
 }
 
 function lanzarErrorTurno(error: { code: string; message: string }): never {
+    if (error.message.startsWith('TURNO_HISTORICO:')) {
+        throw new ApiError(409, 'TURNO_HISTORICO', error.message.slice('TURNO_HISTORICO:'.length).trim());
+    }
     if (error.message.startsWith('TURNO_SOLAPADO:')) {
         throw new ApiError(409, 'TURNO_SOLAPADO', error.message.slice('TURNO_SOLAPADO:'.length).trim());
     }

@@ -57,6 +57,59 @@ it('actualiza la asistencia de recepción sin recargar y muestra el personal sin
     }
 });
 
+it('protege los turnos de hoy y anteriores, incluido un nocturno, y bloquea una edición abierta al cambiar de día', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-11-18T23:59:55-06:00'));
+    const turno: Turno = {
+        id: 'turno-hoy',
+        personal_id: 'demo-6',
+        nombres: 'Fernando',
+        apellidos: 'Aguilar Soto',
+        tipo_personal: 'Médico de emergencia',
+        area: 'Emergencia',
+        fecha: '2026-11-18',
+        hora_inicio: '19:00',
+        hora_fin: '07:00',
+        tipo_turno: 'noche',
+        inicio: '2026-11-18T19:00:00-06:00',
+        fin: '2026-11-19T07:00:00-06:00',
+        estado_asistencia: 'presente',
+    };
+    const turnos: Turno[] = [
+        { ...turno, id: 'turno-ayer', fecha: '2026-11-17', inicio: '2026-11-17T19:00:00-06:00',
+            fin: '2026-11-18T07:00:00-06:00', estado_asistencia: 'ausente' },
+        turno,
+        { ...turno, id: 'turno-manana', fecha: '2026-11-19', inicio: '2026-11-19T19:00:00-06:00',
+            fin: '2026-11-20T07:00:00-06:00', estado_asistencia: 'programado' },
+    ];
+    const listar = vi.spyOn(turnosService, 'listarTurnos').mockResolvedValue(turnos);
+    const pantalla = render(<TurnosPage />);
+    try {
+        await act(async () => {});
+        expect(screen.getAllByText('Presente')).toHaveLength(2);
+        expect(screen.getAllByText('Ausente')).toHaveLength(2);
+        for (const accion of ['Editar', 'Eliminar']) {
+            const botones = screen.getAllByRole('button', { name: new RegExp(`^${accion} turno`) });
+            expect(botones).toHaveLength(2);
+            expect(botones[0]).toHaveAccessibleName(/2026-11-19, 7:00 PM/);
+            expect(botones[1]).toHaveAccessibleName(/2026-11-20, 12:00 AM/);
+        }
+
+        fireEvent.click(screen.getByRole('button', { name: /Editar turno.*2026-11-19, 7:00 PM/ }));
+        const dialogo = within(screen.getByRole('dialog', { name: 'Editar turno' }));
+        expect(dialogo.getByLabelText('Fecha de inicio')).toHaveAttribute('min', '2026-11-19');
+        expect(dialogo.getByRole('button', { name: 'Guardar turno' })).toBeEnabled();
+
+        await act(async () => vi.advanceTimersByTimeAsync(10_000));
+        expect(dialogo.getByRole('button', { name: 'Guardar turno' })).toBeDisabled();
+        expect(dialogo.getByRole('alert')).toHaveTextContent('Turno de solo lectura');
+    } finally {
+        pantalla.unmount();
+        listar.mockRestore();
+        vi.useRealTimers();
+    }
+});
+
 async function abrirFormulario() {
     fireEvent.click(screen.getAllByRole('button', { name: 'Nuevo turno' })[0]);
     const dialog = within(screen.getByRole('dialog', { name: 'Nuevo turno' }));
