@@ -4,10 +4,11 @@ import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { InputHora } from '@/components/ui/input-hora';
 import { Label } from '@/components/ui/label';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { ApiError } from '@/lib/api';
-import { fechaHoraHospital, instanteDesdeFechaHora } from '@/lib/fechas-hospital';
+import { fechaHoraHospital, horaEn24, horaLegible, instanteDesdeFechaHora } from '@/lib/fechas-hospital';
 import { actualizarAviso, crearAviso } from '@/services/avisos.service';
 import type { ActualizarAvisoBody, Aviso, CrearAvisoBody } from '@/types/avisos.types';
 import { AvisoPreview } from './AvisoPreview';
@@ -16,35 +17,51 @@ import { AvisoPreview } from './AvisoPreview';
 export const MAX_TITULO = 150;
 export const MAX_CONTENIDO = 5000;
 
+interface FechaHoraFormulario {
+    fecha: string;
+    hora: string;
+}
+
 interface Formulario {
     titulo: string;
     contenido: string;
     visibilidad: 'publico' | 'interno';
-    publicacion: string; // datetime-local en hora del hospital
-    expiracion: string; // '' = no expira
+    publicacion: FechaHoraFormulario;
+    expiracion: FechaHoraFormulario;
 }
 
 // Las claves son los nombres de campo de la API para asociar sus errores de validación al campo.
 type Errores = Partial<Record<'titulo' | 'contenido' | 'fecha_publicacion' | 'fecha_expiracion', string>>;
 
+function fechaHoraInicial(instante: Date | string): FechaHoraFormulario {
+    const [fecha, hora] = fechaHoraHospital(instante).split('T');
+    return { fecha, hora: horaLegible(hora) };
+}
+
+function fechaHoraCivil({ fecha, hora }: FechaHoraFormulario): string | undefined {
+    if (!fecha && !hora) return '';
+    const hora24 = horaEn24(hora);
+    if (fecha && hora24) return `${fecha}T${hora24}`;
+}
+
 function formularioInicial(aviso: Aviso | null): Formulario {
-    if (!aviso) return { titulo: '', contenido: '', visibilidad: 'publico', publicacion: fechaHoraHospital(), expiracion: '' };
     return {
-        titulo: aviso.titulo,
-        contenido: aviso.contenido,
-        visibilidad: aviso.es_publico ? 'publico' : 'interno',
-        publicacion: fechaHoraHospital(aviso.fecha_publicacion),
-        expiracion: aviso.fecha_expiracion ? fechaHoraHospital(aviso.fecha_expiracion) : '',
+        titulo: aviso?.titulo ?? '',
+        contenido: aviso?.contenido ?? '',
+        visibilidad: aviso?.es_publico === false ? 'interno' : 'publico',
+        publicacion: fechaHoraInicial(aviso?.fecha_publicacion ?? new Date()),
+        expiracion: aviso?.fecha_expiracion ? fechaHoraInicial(aviso.fecha_expiracion) : { fecha: '', hora: '' },
     };
 }
 
 function aCuerpo(f: Formulario): CrearAvisoBody {
+    const expiracion = fechaHoraCivil(f.expiracion);
     return {
         titulo: f.titulo.trim(),
         contenido: f.contenido.trim(),
         es_publico: f.visibilidad === 'publico',
-        fecha_publicacion: instanteDesdeFechaHora(f.publicacion),
-        fecha_expiracion: f.expiracion ? instanteDesdeFechaHora(f.expiracion) : null,
+        fecha_publicacion: instanteDesdeFechaHora(fechaHoraCivil(f.publicacion) ?? ''),
+        fecha_expiracion: expiracion ? instanteDesdeFechaHora(expiracion) : null,
     };
 }
 
@@ -54,8 +71,12 @@ function validar(f: Formulario): Errores {
     else if (f.titulo.trim().length > MAX_TITULO) errores.titulo = `Máximo ${MAX_TITULO} caracteres.`;
     if (!f.contenido.trim()) errores.contenido = 'Escribe el contenido del aviso.';
     else if (f.contenido.trim().length > MAX_CONTENIDO) errores.contenido = `Máximo ${MAX_CONTENIDO} caracteres.`;
-    if (!f.publicacion) errores.fecha_publicacion = 'Indica desde cuándo se muestra.';
-    if (f.expiracion && f.publicacion && f.expiracion <= f.publicacion) {
+    const publicacion = fechaHoraCivil(f.publicacion);
+    const expiracion = fechaHoraCivil(f.expiracion);
+    if (!publicacion) errores.fecha_publicacion = 'Indica la fecha y la hora de publicación con AM o PM.';
+    if (expiracion === undefined) {
+        errores.fecha_expiracion = 'Indica la fecha y la hora de expiración con AM o PM.';
+    } else if (expiracion && publicacion && expiracion <= publicacion) {
         errores.fecha_expiracion = 'Debe ser posterior a la fecha de publicación.';
     }
     return errores;
@@ -69,8 +90,8 @@ function cambios(original: Formulario, actual: Formulario): ActualizarAvisoBody 
     if (despues.titulo !== antes.titulo) body.titulo = despues.titulo;
     if (despues.contenido !== antes.contenido) body.contenido = despues.contenido;
     if (despues.es_publico !== antes.es_publico) body.es_publico = despues.es_publico;
-    if (actual.publicacion !== original.publicacion) body.fecha_publicacion = despues.fecha_publicacion;
-    if (actual.expiracion !== original.expiracion) body.fecha_expiracion = despues.fecha_expiracion;
+    if (despues.fecha_publicacion !== antes.fecha_publicacion) body.fecha_publicacion = despues.fecha_publicacion;
+    if (despues.fecha_expiracion !== antes.fecha_expiracion) body.fecha_expiracion = despues.fecha_expiracion;
     return body;
 }
 
@@ -115,7 +136,8 @@ export function AvisoFormDialog({
     }, [open, aviso]);
 
     const editando = aviso !== null;
-    const sinCambios = editando && Object.keys(cambios(original, form)).length === 0;
+    const sinCambios = editando && fechaHoraCivil(form.expiracion) !== undefined
+        && Object.keys(cambios(original, form)).length === 0;
     const set = <K extends keyof Formulario>(campo: K, valor: Formulario[K]) => setForm((f) => ({ ...f, [campo]: valor }));
 
     function verVistaPrevia() {
@@ -246,9 +268,16 @@ export function AvisoFormDialog({
                             <Label htmlFor="aviso-desde">Visible desde</Label>
                             <Input
                                 id="aviso-desde"
-                                type="datetime-local"
-                                value={form.publicacion}
-                                onChange={(e) => set('publicacion', e.target.value)}
+                                type="date"
+                                value={form.publicacion.fecha}
+                                onChange={(e) => set('publicacion', { ...form.publicacion, fecha: e.target.value })}
+                                {...campo('fecha_publicacion')}
+                            />
+                            <Label htmlFor="aviso-hora-desde">Hora de publicación</Label>
+                            <InputHora
+                                id="aviso-hora-desde"
+                                value={form.publicacion.hora}
+                                onChange={(e) => set('publicacion', { ...form.publicacion, hora: e.target.value })}
                                 {...campo('fecha_publicacion')}
                             />
                             {mensaje('fecha_publicacion')}
@@ -257,10 +286,20 @@ export function AvisoFormDialog({
                             <Label htmlFor="aviso-hasta">Hasta (opcional)</Label>
                             <Input
                                 id="aviso-hasta"
-                                type="datetime-local"
-                                min={form.publicacion || undefined}
-                                value={form.expiracion}
-                                onChange={(e) => set('expiracion', e.target.value)}
+                                type="date"
+                                min={form.publicacion.fecha || undefined}
+                                value={form.expiracion.fecha}
+                                onChange={(e) => set('expiracion', {
+                                    fecha: e.target.value,
+                                    hora: e.target.value ? form.expiracion.hora : '',
+                                })}
+                                {...campo('fecha_expiracion')}
+                            />
+                            <Label htmlFor="aviso-hora-hasta">Hora de expiración</Label>
+                            <InputHora
+                                id="aviso-hora-hasta"
+                                value={form.expiracion.hora}
+                                onChange={(e) => set('expiracion', { ...form.expiracion, hora: e.target.value })}
                                 {...campo('fecha_expiracion')}
                             />
                             {mensaje('fecha_expiracion') ?? (

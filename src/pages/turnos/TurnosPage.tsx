@@ -9,7 +9,7 @@ import { DataTable, type Column } from '@/components/ui/data-table';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { Select } from '@/components/ui/select';
 import { useResource } from '@/hooks/useResource';
-import { fechaHospital, instanteHospital, lunesDe, sumarDias } from '@/lib/fechas-hospital';
+import { fechaHospital, horaLegible, instanteHospital, lunesDe, sumarDias } from '@/lib/fechas-hospital';
 import { cn } from '@/lib/utils';
 import { listarTurnos } from '@/services/turnos.service';
 import { TIPOS_TURNO, type EstadoAsistencia, type Turno } from '@/types/turnos.types';

@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('@/lib/client', () => ({ isDemoMode: true }));
 
 import App from '@/App';
-import { fechaHoraHospital } from '@/lib/fechas-hospital';
+import { fechaHospital } from '@/lib/fechas-hospital';
 import { reiniciar } from '@/services/avisos.mock';
 
 const DIA = 24 * 60 * 60 * 1000;
@@ -80,11 +80,14 @@ describe('Avisos', () => {
         // La expiración no puede ser anterior a la publicación.
         const desde = dialogo.getByLabelText('Visible desde') as HTMLInputElement;
         fireEvent.change(dialogo.getByLabelText('Hasta (opcional)'), {
-            target: { value: fechaHoraHospital(new Date(Date.now() - DIA)) },
+            target: { value: fechaHospital(new Date(Date.now() - DIA)) },
         });
+        fireEvent.change(dialogo.getByLabelText('Hora de expiración'), { target: { value: '12:00 AM' } });
         fireEvent.click(dialogo.getByRole('button', { name: 'Vista previa' }));
         expect(await dialogo.findByText('Debe ser posterior a la fecha de publicación.')).toBeInTheDocument();
-        expect(desde.value).toBe(fechaHoraHospital().slice(0, 16));
+        expect(desde.value).toBe(fechaHospital());
+        const horaPublicacion = dialogo.getByLabelText<HTMLInputElement>('Hora de publicación');
+        expect(horaPublicacion.value).toMatch(/ (AM|PM)$/);
 
         fireEvent.change(dialogo.getByLabelText('Hasta (opcional)'), { target: { value: '' } });
         fireEvent.click(dialogo.getByRole('button', { name: 'Vista previa' }));
@@ -116,20 +119,22 @@ describe('Avisos', () => {
         expect(dialogo.getByRole('button', { name: 'Vista previa' })).toBeDisabled();
 
         fireEvent.change(dialogo.getByLabelText('Visible desde'), {
-            target: { value: fechaHoraHospital(new Date(Date.now() + 2 * DIA)) },
+            target: { value: fechaHospital(new Date(Date.now() + 2 * DIA)) },
         });
+        fireEvent.change(dialogo.getByLabelText('Hora de publicación'), { target: { value: '12:00 PM' } });
         fireEvent.click(dialogo.getByRole('radio', { name: 'Interno' }));
         fireEvent.click(dialogo.getByRole('button', { name: 'Vista previa' }));
 
         const previa = within(await screen.findByRole('dialog', { name: 'Vista previa' }));
         expect(previa.getByText('Solo lo verá el personal con sesión iniciada.')).toBeInTheDocument();
-        expect(previa.getByText(/Se mostrará a partir del/)).toBeInTheDocument();
+        expect(previa.getByText(/Se mostrará a partir del/)).toHaveTextContent('12:00 PM');
         fireEvent.click(previa.getByRole('button', { name: 'Guardar cambios' }));
 
         expect(await screen.findByText('Se guardó «Horario de visitas». Quedó programado.')).toBeInTheDocument();
         const fila = (await tabla().findByText('Horario de visitas')).closest('tr')!;
         expect(within(fila).getByText('Interno')).toBeInTheDocument();
         expect(within(fila).getByText('Programado')).toBeInTheDocument();
+        expect(fila).toHaveTextContent('12:00 PM');
     });
 
     it('elimina un aviso después de confirmar', async () => {

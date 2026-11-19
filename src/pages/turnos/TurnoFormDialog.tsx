@@ -5,10 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { ErrorState } from '@/components/ui/feedback-state';
 import { Input } from '@/components/ui/input';
+import { InputHora } from '@/components/ui/input-hora';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { useResource } from '@/hooks/useResource';
 import { ApiError } from '@/lib/api';
+import { horaEn24 } from '@/lib/fechas-hospital';
 import { crearTurno, listarPersonalParaTurnos } from '@/services/turnos.service';
 import { TIPOS_TURNO, type CrearTurnoBody } from '@/types/turnos.types';
 import { SelectorPersonal, type OpcionPersonal } from './SelectorPersonal';
@@ -28,6 +30,8 @@ export function TurnoFormDialog({
     const personal = useResource(listarPersonalParaTurnos);
     const [persona, setPersona] = useState<OpcionPersonal | null>(null);
     const [horas, setHoras] = useState({ inicio: '', fin: '' });
+    const inicio = horaEn24(horas.inicio);
+    const fin = horaEn24(horas.fin);
     const [guardando, setGuardando] = useState(false);
     const [error, setError] = useState<ApiError | null>(null);
     const envioEnCurso = useRef(false);
@@ -39,14 +43,14 @@ export function TurnoFormDialog({
 
     async function guardar(e: FormEvent<HTMLFormElement>) {
         e.preventDefault();
-        if (envioEnCurso.current || personal.status !== 'success' || !persona) return;
+        if (envioEnCurso.current || personal.status !== 'success' || !persona || !inicio || !fin) return;
 
         const form = new FormData(e.currentTarget);
         const body: CrearTurnoBody = {
             personal_id: persona.id,
             fecha: String(form.get('fecha')),
-            hora_inicio: horas.inicio,
-            hora_fin: horas.fin,
+            hora_inicio: inicio,
+            hora_fin: fin,
             area: String(form.get('area')).trim(),
             tipo_turno: form.get('tipo_turno') as CrearTurnoBody['tipo_turno'],
         };
@@ -129,16 +133,16 @@ export function TurnoFormDialog({
                             </div>
                             <div className="grid gap-2">
                                 <Label htmlFor={`${id}-inicio`}>Hora de inicio</Label>
-                                <Input id={`${id}-inicio`} type="time" required value={horas.inicio}
+                                <InputHora id={`${id}-inicio`} required value={horas.inicio}
                                     onChange={(e) => setHoras({ ...horas, inicio: e.target.value })} />
                             </div>
                             <div className="grid gap-2">
                                 <Label htmlFor={`${id}-fin`}>Hora de fin</Label>
-                                <Input id={`${id}-fin`} type="time" required value={horas.fin}
+                                <InputHora id={`${id}-fin`} required value={horas.fin}
                                     onChange={(e) => setHoras({ ...horas, fin: e.target.value })} aria-describedby={`${id}-fin-ayuda`} />
                             </div>
                             <p id={`${id}-fin-ayuda`} className="col-span-2 text-xs text-muted-foreground">
-                                {horas.inicio && horas.fin && horas.fin < horas.inicio
+                                {inicio && fin && fin < inicio
                                     ? 'El turno terminará al día siguiente.'
                                     : 'Para un turno nocturno, una hora de fin menor indica el día siguiente.'}
                             </p>
