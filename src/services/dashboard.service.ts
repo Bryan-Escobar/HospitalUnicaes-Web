@@ -4,8 +4,17 @@ import { apiFetch } from '@/lib/api';
 import { isDemoMode } from '@/lib/client';
 import { responder } from '@/services/admin.service';
 import type { ResumenDashboard } from '@/types/dashboard.types';
+import { ordenesDemo } from './laboratorio.mock';
 
 const conteo = (total: number, ocupadas: number) => ({ ocupadas, disponibles: total - ocupadas, total });
+
+function laboratorioDemo() {
+    const ordenes = ordenesDemo();
+    return {
+        pendientes: ordenes.filter((orden) => orden.estado === 'pendiente').length,
+        en_proceso: ordenes.filter((orden) => orden.estado === 'en_proceso').length,
+    };
+}
 
 const demo = (): ResumenDashboard => ({
     ocupacion: { vip: conteo(5, 3), semiprivada: conteo(12, 9), total: conteo(17, 12) },
@@ -27,7 +36,7 @@ const demo = (): ResumenDashboard => ({
             { estado: 'cancelada', cantidad: 1 },
         ],
     },
-    laboratorio: { pendientes: 7, en_proceso: 4 },
+    laboratorio: laboratorioDemo(),
     inventario_bajo_minimo: 3,
     lotes_por_vencer: { vencidos: 1, en_15_dias: 2, en_30_dias: 4 },
     generado_en: new Date().toISOString(),
