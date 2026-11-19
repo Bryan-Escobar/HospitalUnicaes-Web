@@ -1,4 +1,5 @@
 import type * as React from 'react';
+import { useContext } from 'react';
 import { Link } from 'react-router-dom';
 import { BedDouble, CalendarDays, CalendarX2, ChevronRight, FlaskConical, Package, RefreshCw, Stethoscope, TriangleAlert } from 'lucide-react';
 
@@ -10,6 +11,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { StatusBadge } from '@/components/ui/status-badge';
+import { AuthContext } from '@/context/AuthContext';
+import { useAlertasPanel } from '@/hooks/useAlertasPanel';
 import { selectResource, useResource, useSecondsSince } from '@/hooks/useResource';
 import { cn } from '@/lib/utils';
 import { obtenerResumenDashboard } from '@/services/dashboard.service';
@@ -38,6 +41,8 @@ const porcentaje = (c: ConteoCamas) => (c.total === 0 ? 0 : Math.round((c.ocupad
 
 // WEB-2 Dashboard: estado del hospital de un vistazo, con datos de GET /api/dashboard/resumen.
 export default function Dashboard() {
+    const { session } = useContext(AuthContext);
+    const [alertas] = useAlertasPanel(session?.user.id ?? '');
     const resumen = useResource(obtenerResumenDashboard, [], (r) => r == null, { refreshMs: REFRESCO_MS });
     const segundos = useSecondsSince(resumen.updatedAt);
     const d = resumen.data;
@@ -117,6 +122,11 @@ export default function Dashboard() {
                     {d && (
                         <div className="py-1">
                             <StatusBadge estado={d.ambulancia.estado} size="lg" />
+                            {alertas.ambulancia && d.ambulancia.solicitud_activa_id && (
+                                <Link to="/ambulancia" className="mt-2 block text-sm font-medium text-warning-ink hover:underline">
+                                    Solicitud activa
+                                </Link>
+                            )}
                         </div>
                     )}
                 </KpiCard>
@@ -174,16 +184,18 @@ export default function Dashboard() {
                         <ResourceView resource={inventario}>
                             {(inv) => (
                                 <ul className="space-y-2">
-                                    <AlertaInventario
-                                        to="/inventario?stock=bajo"
-                                        icon={TriangleAlert}
-                                        label="Ítems bajo el stock mínimo"
-                                        valor={inv.bajoMinimo}
-                                        tono="warning"
-                                    />
-                                    <AlertaInventario to="/inventario" icon={Package} label="Lotes vencidos" valor={inv.lotes.vencidos} tono="danger" />
-                                    <AlertaInventario to="/inventario" icon={CalendarDays} label="Vencen en 15 días" valor={inv.lotes.en_15_dias} tono="warning" />
-                                    <AlertaInventario to="/inventario" icon={CalendarDays} label="Vencen en 16 a 30 días" valor={inv.lotes.en_30_dias} tono="info" />
+                                    {alertas.stock && (
+                                        <AlertaInventario
+                                            to="/inventario?stock=bajo"
+                                            icon={TriangleAlert}
+                                            label="Ítems bajo el stock mínimo"
+                                            valor={inv.bajoMinimo}
+                                            tono="warning"
+                                        />
+                                    )}
+                                    <AlertaInventario to="/inventario?vista=caducidad&alerta=vencido" icon={Package} label="Lotes vencidos" valor={inv.lotes.vencidos} tono="danger" />
+                                    <AlertaInventario to="/inventario?vista=caducidad&alerta=15_dias" icon={CalendarDays} label="Vencen en 15 días" valor={inv.lotes.en_15_dias} tono="warning" />
+                                    <AlertaInventario to="/inventario?vista=caducidad&alerta=30_dias" icon={CalendarDays} label="Vencen en 16 a 30 días" valor={inv.lotes.en_30_dias} tono="info" />
                                 </ul>
                             )}
                         </ResourceView>

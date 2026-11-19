@@ -10,6 +10,7 @@ import { ROL_ETIQUETA, type EstadoAcceso } from '@/types/auth.types';
 export function AccesoDenegado({ acceso }: { acceso: Exclude<EstadoAcceso, { estado: 'permitido' }> }) {
     const { session, logOut, reintentarAcceso } = useContext(AuthContext);
     const [saliendo, setSaliendo] = useState(false);
+    const [errorSalida, setErrorSalida] = useState(false);
     const correo = session?.user?.email;
 
     const contenido = {
@@ -50,7 +51,14 @@ export function AccesoDenegado({ acceso }: { acceso: Exclude<EstadoAcceso, { est
 
     const salir = async () => {
         setSaliendo(true);
-        await logOut();
+        setErrorSalida(false);
+        try {
+            await logOut();
+        } catch {
+            setErrorSalida(true);
+        } finally {
+            setSaliendo(false);
+        }
     };
 
     return (
@@ -78,6 +86,7 @@ export function AccesoDenegado({ acceso }: { acceso: Exclude<EstadoAcceso, { est
                     {saliendo ? <LoaderCircle className="animate-spin" /> : <LogOut />}
                     {acceso.estado === 'error' ? 'Cerrar sesión' : 'Usar otra cuenta'}
                 </Button>
+                {errorSalida && <p role="alert" className="text-sm text-danger">No se pudo cerrar la sesión. Intenta de nuevo.</p>}
             </div>
         </AuthShell>
     );

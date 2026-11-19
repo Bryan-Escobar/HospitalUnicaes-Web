@@ -2,7 +2,7 @@ import type * as React from 'react';
 
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Progress } from '@/components/ui/progress';
-import type { EstadoLaboratorio } from '@/types/admin.types';
+import { ESTADOS_LABORATORIO, type EstadoLaboratorio } from '@/types/admin.types';
 import { cn } from '@/lib/utils';
 
 // Gráficas ligeras (CSS/SVG) con los colores del sistema de diseño. Cada una tiene un texto
@@ -57,11 +57,10 @@ const COLOR_LAB: Record<EstadoLaboratorio, string> = {
 // Filas de estado de laboratorio: badge + barra + número.
 export function LabStatusBars({ conteo, layout = 'stacked' }: { conteo: Record<EstadoLaboratorio, number>; layout?: 'stacked' | 'inline' }) {
     const total = conteo.pendiente + conteo.en_proceso + conteo.completado;
-    const estados: EstadoLaboratorio[] = ['pendiente', 'en_proceso', 'completado'];
     if (layout === 'inline') {
         return (
             <ul className="space-y-5">
-                {estados.map((e) => (
+                {ESTADOS_LABORATORIO.map((e) => (
                     <li key={e} className="grid grid-cols-[112px_1fr_48px] items-center gap-4">
                         <span>
                             <StatusBadge estado={e} />
@@ -75,7 +74,7 @@ export function LabStatusBars({ conteo, layout = 'stacked' }: { conteo: Record<E
     }
     return (
         <ul className="space-y-6">
-            {estados.map((e) => (
+            {ESTADOS_LABORATORIO.map((e) => (
                 <li key={e}>
                     <div className="mb-2 flex items-center justify-between">
                         <StatusBadge estado={e} />
@@ -88,13 +87,13 @@ export function LabStatusBars({ conteo, layout = 'stacked' }: { conteo: Record<E
     );
 }
 
-export function HorizontalBars({ data }: { data: { label: string; value: number }[] }) {
+export function HorizontalBars({ data }: { data: { id?: string; label: string; value: number }[] }) {
     const max = Math.max(...data.map((d) => d.value), 1);
     return (
         <ul className="space-y-5">
             {data.map((d) => (
-                <li key={d.label} className="grid grid-cols-[minmax(140px,180px)_1fr_40px] items-center gap-4">
-                    <span className="truncate text-sm">{d.label}</span>
+                <li key={d.id ?? d.label} className="grid grid-cols-[minmax(0,180px)_minmax(32px,1fr)_40px] items-center gap-4">
+                    <span className="break-words text-sm">{d.label}</span>
                     <Progress value={d.value} max={max} className="h-3" label={d.label} />
                     <span className="text-right text-base font-bold tabular">{d.value}</span>
                 </li>
@@ -125,7 +124,7 @@ export function LineChart({
     return (
         <figure className="w-full">
             <figcaption className="sr-only">
-                {label}. Promedio {avg.toFixed(1)} de {max}.
+                {label}. Promedio {avg.toFixed(1)}.
             </figcaption>
             <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full overflow-visible" aria-hidden>
                 <line x1={pad} x2={W - pad} y1={y(max)} y2={y(max)} stroke="var(--border-strong)" strokeDasharray="5 4" />

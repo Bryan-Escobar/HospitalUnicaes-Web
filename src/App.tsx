@@ -9,6 +9,7 @@ import { AdminLayout } from './components/layout/AdminLayout'
 import Dashboard from './pages/dashboard/dashboard'
 import UsuariosPage from './pages/usuarios/UsuariosPage'
 import PacientesPage from './pages/pacientes/PacientesPage'
+import FichaPacientePage from './pages/pacientes/FichaPacientePage'
 import TurnosPage from './pages/turnos/TurnosPage'
 import MapaPlantasPage from './pages/mapa/MapaPlantasPage'
 import InventarioPage from './pages/inventario/InventarioPage'
@@ -35,6 +36,7 @@ function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/usuarios" element={<UsuariosPage />} />
             <Route path="/pacientes" element={<PacientesPage />} />
+            <Route path="/pacientes/:id" element={<FichaPacientePage />} />
             <Route path="/turnos" element={<TurnosPage />} />
             <Route path="/mapa-plantas" element={<MapaPlantasPage />} />
             <Route path="/inventario" element={<InventarioPage />} />

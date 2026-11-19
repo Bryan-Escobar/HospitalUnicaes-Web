@@ -1,6 +1,6 @@
 import { apiFetch, ApiError } from '@/lib/api';
 import { isDemoMode } from '@/lib/client';
-import type { EstadoAcceso, Me, Rol } from '@/types/auth.types';
+import type { EstadoAcceso, Me, Perfil, Rol } from '@/types/auth.types';
 
 const ROLES: Rol[] = ['administrador', 'doctor', 'recepcionista', 'paciente'];
 
@@ -11,8 +11,8 @@ function meDemo(email: string): Me {
     return {
         id: email,
         email,
-        nombres: 'Rosa',
-        apellidos: 'Guzmán',
+        nombres: '',
+        apellidos: '',
         telefono: null,
         avatar_url: null,
         rol: ROLES.includes(prefijo) ? prefijo : 'administrador',
@@ -26,6 +26,10 @@ function meDemo(email: string): Me {
 export function obtenerMe(email: string): Promise<Me> {
     if (isDemoMode) return Promise.resolve(meDemo(email));
     return apiFetch<Me>('/auth/me');
+}
+
+export function actualizarPerfil(cambios: Partial<Pick<Perfil, 'nombres' | 'apellidos' | 'telefono'>>): Promise<Perfil> {
+    return apiFetch<Perfil>('/auth/me', { method: 'PATCH', body: JSON.stringify(cambios) });
 }
 
 // Decide si la sesión puede usar el panel Web: solo administradores con la cuenta activa.

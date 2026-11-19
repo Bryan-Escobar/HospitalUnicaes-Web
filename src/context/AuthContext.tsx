@@ -1,10 +1,11 @@
 import { createContext, useCallback, useEffect, useRef, type PropsWithChildren } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { useNavigate } from 'react-router-dom';
-import type { EstadoAcceso, LoginRequest } from "@/types/auth.types";
+import type { EstadoAcceso, LoginRequest, Perfil } from "@/types/auth.types";
 import { useAuthStore } from "@/store/useAuthStore";
 import { isDemoMode, supabase } from "@/lib/client";
-import { verificarAcceso } from "@/services/auth.service";
+import { queryClient } from "@/lib/query-client";
+import { actualizarPerfil, verificarAcceso } from "@/services/auth.service";
 
 const DEMO_SESSION_KEY = "hu-demo-session";
 
@@ -31,6 +32,7 @@ export interface AuthContextProps {
     acceso: EstadoAcceso | null;
     sesionExpirada: boolean;
     logOut: () => Promise<void>;
+    guardarPerfil: (cambios: Partial<Pick<Perfil, 'nombres' | 'apellidos' | 'telefono'>>) => Promise<void>;
     logIn: (credentials: LoginRequest) => Promise<void>;
     reintentarAcceso: () => void;
     clearError: () => void;
@@ -45,6 +47,7 @@ export const AuthContext = createContext<AuthContextProps>({
     acceso: null,
     sesionExpirada: false,
     logOut: async () => { },
+    guardarPerfil: async () => { },
     logIn: async () => { },
     reintentarAcceso: () => { },
     clearError: () => { },
@@ -107,6 +110,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
             if (event === 'SIGNED_OUT') {
                 if (!cerrandoSesion.current) setSesionExpirada(true);
                 reset();
+                queryClient.clear();
                 return;
             }
             setSession(session);
@@ -178,29 +182,32 @@ export function AuthProvider({ children }: PropsWithChildren) {
         }
     };
 
-    // Cierra la sesión en Supabase (revoca el refresh token) y siempre limpia el estado local,
-    // aunque falle la red: el usuario nunca se queda con una sesión a medias.
+    const guardarPerfil: AuthContextProps['guardarPerfil'] = async (cambios) => {
+        const accesoActual = useAuthStore.getState().acceso;
+        if (isDemoMode || accesoActual?.estado !== 'permitido' || accesoActual.userId !== userId) {
+            throw new Error('Tu sesión ya no permite guardar cambios en el perfil.');
+        }
+        const perfil = await actualizarPerfil(cambios);
+        if (useAuthStore.getState().acceso === accesoActual) {
+            setAcceso({ ...accesoActual, perfil: { ...accesoActual.perfil, ...perfil } });
+        }
+    };
+
     const logOut = async () => {
         cerrandoSesion.current = true;
         try {
             if (isDemoMode) {
-                try {
-                    sessionStorage.removeItem(DEMO_SESSION_KEY);
-                } catch {
-                    // nada que limpiar
-                }
+                sessionStorage.removeItem(DEMO_SESSION_KEY);
             } else {
-                const { error } = await supabase.auth.signOut();
-                if (error) {
-                    console.error('[AuthContext] Error al cerrar sesión:', error.message);
-                    await supabase.auth.signOut({ scope: 'local' });
-                }
+                const { error } = await supabase.auth.signOut({ scope: 'local' });
+                if (error) throw error;
             }
-        } finally {
             reset();
+            queryClient.clear();
             setSesionExpirada(false);
-            cerrandoSesion.current = false;
             navigate('/login', { replace: true });
+        } finally {
+            cerrandoSesion.current = false;
         }
     };
 
@@ -209,6 +216,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
             logIn,
             session,
             logOut,
+            guardarPerfil,
             isLoading,
             isLoggedIn,
             error,
