@@ -4,6 +4,7 @@
 import type {
     Paciente,
     Reportes,
+    PerfilAdmin,
 } from '@/types/admin.types';
 
 const NOMBRES = ['Daniel', 'Gabriela', 'Fernando', 'Patricia', 'Ricardo', 'Valeria', 'Andrés', 'Claudia', 'Emilio', 'Natalia', 'Héctor', 'Silvia', 'Mauricio', 'Beatriz', 'Rodrigo', 'Lorena', 'Samuel', 'Irene', 'Julio', 'Diana', 'Ernesto', 'Mónica', 'Kevin', 'Paola'];
@@ -63,22 +64,3 @@ export const pacientes: Paciente[] = [
         };
     }),
 ];
-
-const OCUPACION_30_DIAS = [11, 12, 12, 13, 12, 14, 13, 12, 11, 12, 13, 14, 13, 12, 12, 13, 14, 13, 12, 11, 12, 13, 13, 12, 14, 13, 12, 13, 12, 12];
-
-export const reportes: Reportes = {
-    ocupacionHistorica: OCUPACION_30_DIAS.map((ocupadas, i) => ({ dia: `${((i + 21) % 30) + 1} ${i < 9 ? 'sep' : 'oct'}`, ocupadas })),
-    ambulanciaPorSemana: [
-        { semana: 'Sem 39', servicios: 2 },
-        { semana: 'Sem 40', servicios: 3 },
-        { semana: 'Sem 41', servicios: 2 },
-        { semana: 'Sem 42', servicios: 4 },
-    ],
-    laboratorio: { pendiente: 21, en_proceso: 13, completado: 142 },
-    citasPorDoctor: [
-        { doctor: 'Dr. Carlos Molina', citas: 96 },
-        { doctor: 'Dra. Ana Rivas', citas: 72 },
-        { doctor: 'Dra. Sofía Hernández', citas: 60 },
-        { doctor: 'Dr. Jorge Peña', citas: 33 },
-    ],
-};

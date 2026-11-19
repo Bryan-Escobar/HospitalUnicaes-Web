@@ -1,7 +1,8 @@
 // Modelos de vista del panel Web (Administrador). Cuando la API (HospitalUnicaes-Api) exponga
 // los endpoints, los servicios mapearán los DTO del contrato OpenAPI a estos tipos.
 
-export type EstadoLaboratorio = "pendiente" | "en_proceso" | "completado"
+export const ESTADOS_LABORATORIO = ['pendiente', 'en_proceso', 'completado'] as const
+export type EstadoLaboratorio = typeof ESTADOS_LABORATORIO[number]
 export type EstadoAmbulancia = "disponible" | "en_servicio" | "en_mantenimiento"
 
 export interface Paginado<T> {
@@ -24,4 +25,11 @@ export interface Reportes {
   ambulanciaPorSemana: { semana: string; servicios: number }[]
   laboratorio: Record<EstadoLaboratorio, number>
   citasPorDoctor: { doctor: string; citas: number }[]
+export interface PerfilAdmin {
+  nombre: string
+  cargo: string
+  correo: string
+  telefono: string
+  passwordCambiada: string
+  sesionesActivas: number
 }
