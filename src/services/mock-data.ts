@@ -1,11 +1,7 @@
 // Datos de ejemplo tomados de las pantallas Web del Figma (HUNI-30). Se reemplazan por la API
 // cuando estén disponibles los endpoints; respetan las reglas de context.md §3
 // (5 VIP + 6 semiprivadas = 17 camas, 1 ambulancia, estados exactos).
-import type {
-    Paciente,
-    Reportes,
-    PerfilAdmin,
-} from '@/types/admin.types';
+import type { Paciente } from '@/types/admin.types';
 
 const NOMBRES = ['Daniel', 'Gabriela', 'Fernando', 'Patricia', 'Ricardo', 'Valeria', 'Andrés', 'Claudia', 'Emilio', 'Natalia', 'Héctor', 'Silvia', 'Mauricio', 'Beatriz', 'Rodrigo', 'Lorena', 'Samuel', 'Irene', 'Julio', 'Diana', 'Ernesto', 'Mónica', 'Kevin', 'Paola'];
 const APELLIDOS = ['Castro', 'Aguilar', 'Hernández', 'Martínez', 'Portillo', 'Rivera', 'Orellana', 'Flores', 'Menjívar', 'Alvarado', 'Guevara', 'Romero', 'Campos', 'Escobar', 'Mejía', 'Quintanilla'];
