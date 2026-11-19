@@ -15,7 +15,7 @@ export async function listarTurnos(desde: string, hasta: string): Promise<Turno[
     for (let offset = 0; ; offset += porPagina) {
         const { data, error } = await supabase
             .from('v_turnos')
-            .select('id, personal_id, nombres, apellidos, tipo_personal, area, fecha, hora_inicio, hora_fin, tipo_turno, inicio, fin')
+            .select('id, personal_id, nombres, apellidos, tipo_personal, area, fecha, hora_inicio, hora_fin, tipo_turno, inicio, fin, estado_asistencia')
             .lt('inicio', instanteHospital(hasta))
             .gt('fin', instanteHospital(desde))
             .order('inicio')
