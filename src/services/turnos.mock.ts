@@ -1,6 +1,6 @@
 import { ApiError } from '@/lib/api';
 import { fechaHospital, instanteHospital, lunesDe, sumarDias } from '@/lib/fechas-hospital';
-import type { CrearTurnoBody, Turno } from '@/types/turnos.types';
+import { TURNO_HISTORICO_MENSAJE, type CrearTurnoBody, type Turno } from '@/types/turnos.types';
 import * as personalDemo from './personal.mock';
 
 const semilla = [
@@ -77,11 +77,15 @@ function localizar(id: string) {
     const turnos = id.startsWith('ejemplo-') ? ejemplos : registrados;
     const indice = turnos.findIndex((turno) => turno.id === id);
     if (indice === -1) throw new ApiError(404, 'TURNO_NO_ENCONTRADO', 'El turno ya no está disponible.');
+    if (turnos[indice].fecha <= fechaHospital()) throw new ApiError(409, 'TURNO_HISTORICO', TURNO_HISTORICO_MENSAJE);
     return { turnos, indice };
 }
 
 export function actualizar(id: string, body: CrearTurnoBody) {
     const { turnos, indice } = localizar(id);
+    if (body.fecha <= fechaHospital()) {
+        throw new ApiError(409, 'TURNO_HISTORICO', 'La nueva fecha de inicio debe ser a partir de mañana.');
+    }
     const turno = conIntervalo(body, id);
     validar(turno, turnos[indice].personal_id);
     turnos[indice] = turno;

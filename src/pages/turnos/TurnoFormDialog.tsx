@@ -10,19 +10,21 @@ import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { useResource } from '@/hooks/useResource';
 import { ApiError } from '@/lib/api';
-import { horaEn24, horaLegible } from '@/lib/fechas-hospital';
+import { fechaHospital, horaEn24, horaLegible, sumarDias } from '@/lib/fechas-hospital';
 import { actualizarTurno, crearTurno, listarPersonalParaTurnos } from '@/services/turnos.service';
-import { TIPOS_TURNO, type CrearTurnoBody, type Turno } from '@/types/turnos.types';
+import { TIPOS_TURNO, TURNO_HISTORICO_MENSAJE, type CrearTurnoBody, type Turno } from '@/types/turnos.types';
 import { SelectorPersonal, type OpcionPersonal } from './SelectorPersonal';
 
 export function TurnoFormDialog({
     fechaInicial,
+    hoy,
     turno,
     areas,
     onClose,
     onSaved,
 }: {
     fechaInicial: string;
+    hoy: string;
     turno?: Turno;
     areas: string[];
     onClose: () => void;
@@ -45,6 +47,7 @@ export function TurnoFormDialog({
     const [error, setError] = useState<ApiError | null>(null);
     const envioEnCurso = useRef(false);
     const formularioDisponible = !!turno || personal.status === 'success';
+    const edicionBloqueada = !!turno && turno.fecha <= hoy;
     const opcionesPersonal = (personal.data ?? []).map((p) => ({
         id: p.id,
         nombre: `${p.nombres} ${p.apellidos}`,
@@ -64,6 +67,13 @@ export function TurnoFormDialog({
             area: String(form.get('area')).trim(),
             tipo_turno: form.get('tipo_turno') as CrearTurnoBody['tipo_turno'],
         };
+        if (turno) {
+            const fechaActual = fechaHospital();
+            if (turno.fecha <= fechaActual || body.fecha <= fechaActual) {
+                setError(new ApiError(409, 'TURNO_HISTORICO', TURNO_HISTORICO_MENSAJE));
+                return;
+            }
+        }
         if (!body.area || body.hora_inicio === body.hora_fin) {
             setError(new ApiError(422, 'VALIDACION', !body.area
                 ? 'Escribe el área del turno.'
@@ -104,7 +114,7 @@ export function TurnoFormDialog({
             footer={
                 <>
                     <Button variant="outline" disabled={guardando} onClick={onClose}>Cancelar</Button>
-                    <Button type="submit" form={id} disabled={guardando || !formularioDisponible || !persona}>
+                    <Button type="submit" form={id} disabled={guardando || edicionBloqueada || !formularioDisponible || !persona}>
                         {guardando ? 'Guardando…' : 'Guardar turno'}
                     </Button>
                 </>
@@ -117,7 +127,7 @@ export function TurnoFormDialog({
             )}
             {formularioDisponible && (
                 <form id={id} onSubmit={guardar} onChange={() => setError(null)}>
-                    <fieldset disabled={guardando} className="grid gap-4">
+                    <fieldset disabled={guardando || edicionBloqueada} className="grid gap-4">
                         <div className="grid gap-2">
                             <Label htmlFor={`${id}-personal`}>Personal</Label>
                             <SelectorPersonal
@@ -140,7 +150,8 @@ export function TurnoFormDialog({
                         <div className="grid grid-cols-2 gap-4">
                             <div className="grid gap-2">
                                 <Label htmlFor={`${id}-fecha`}>Fecha de inicio</Label>
-                                <Input id={`${id}-fecha`} name="fecha" type="date" defaultValue={turno?.fecha ?? fechaInicial} required />
+                                <Input id={`${id}-fecha`} name="fecha" type="date" defaultValue={turno?.fecha ?? fechaInicial}
+                                    min={turno ? sumarDias(hoy, 1) : undefined} required />
                             </div>
                             <div className="grid gap-2">
                                 <Label htmlFor={`${id}-tipo`}>Tipo de turno</Label>
@@ -165,7 +176,8 @@ export function TurnoFormDialog({
                                     : 'Para un turno nocturno, una hora de fin menor indica el día siguiente.'}
                             </p>
                         </div>
-                        {error && (
+                        {edicionBloqueada && <Alert tone="warning" title="Turno de solo lectura">{TURNO_HISTORICO_MENSAJE}</Alert>}
+                        {error && !edicionBloqueada && (
                             <Alert tone={error.code === 'TURNO_SOLAPADO' ? 'warning' : 'danger'}
                                 title={error.code === 'TURNO_SOLAPADO' ? 'Solapamiento de turnos' : 'No se pudo guardar'}>
                                 {error.message}

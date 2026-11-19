@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { CalendarX2, ChevronLeft, ChevronRight, Pencil, Plus, Trash2 } from 'lucide-react';
 
 import { PageHeader, Toolbar } from '@/components/layout/AdminLayout';
@@ -14,7 +14,7 @@ import { ApiError } from '@/lib/api';
 import { fechaHospital, horaLegible, instanteHospital, lunesDe, sumarDias } from '@/lib/fechas-hospital';
 import { cn } from '@/lib/utils';
 import { eliminarTurno, listarTurnos } from '@/services/turnos.service';
-import { TIPOS_TURNO, type EstadoAsistencia, type Turno } from '@/types/turnos.types';
+import { TIPOS_TURNO, TURNO_HISTORICO_MENSAJE, type EstadoAsistencia, type Turno } from '@/types/turnos.types';
 import { SelectorPersonal, type OpcionPersonal } from './SelectorPersonal';
 import { TurnoFormDialog } from './TurnoFormDialog';
 
@@ -59,9 +59,10 @@ function agruparTurnos(turnos: Turno[], porArea: boolean): FilaTurnos[] {
     );
 }
 
-function CeldaTurnos({ turnos, fecha, onEdit, onDelete }: {
+function CeldaTurnos({ turnos, fecha, hoy, onEdit, onDelete }: {
     turnos: Turno[];
     fecha: string;
+    hoy: string;
     onEdit: (turno: Turno) => void;
     onDelete: (turno: Turno) => void;
 }) {
@@ -92,7 +93,7 @@ function CeldaTurnos({ turnos, fecha, onEdit, onDelete }: {
                         <span className="block break-words">{turno.area}</span>
                         <span className="block">{TIPOS_TURNO[turno.tipo_turno]}</span>
                         {asistencia && <span className="block font-semibold">{asistencia.etiqueta}</span>}
-                        <div className="mt-1 flex flex-wrap gap-1">
+                        {turno.fecha > hoy && <div className="mt-1 flex flex-wrap gap-1">
                             <Button type="button" variant="ghost" size="icon" className="size-7"
                                 aria-label={`Editar turno ${detalle}`} title="Editar turno" onClick={() => onEdit(turno)}>
                                 <Pencil aria-hidden />
@@ -101,7 +102,7 @@ function CeldaTurnos({ turnos, fecha, onEdit, onDelete }: {
                                 aria-label={`Eliminar turno ${detalle}`} title="Eliminar turno" onClick={() => onDelete(turno)}>
                                 <Trash2 aria-hidden />
                             </Button>
-                        </div>
+                        </div>}
                     </li>
                 );
             })}
@@ -110,9 +111,9 @@ function CeldaTurnos({ turnos, fecha, onEdit, onDelete }: {
 }
 
 export default function TurnosPage() {
-    const hoy = fechaHospital();
+    const [hoy, setHoy] = useState(fechaHospital);
     const lunesActual = lunesDe(hoy);
-    const [lunes, setLunes] = useState(() => lunesDe(fechaHospital()));
+    const [lunes, setLunes] = useState(() => lunesDe(hoy));
     const [vista, setVista] = useState<'persona' | 'area'>('persona');
     const [filtroArea, setFiltroArea] = useState('');
     const [filtroTipo, setFiltroTipo] = useState('');
@@ -123,6 +124,10 @@ export default function TurnosPage() {
     const [errorEliminar, setErrorEliminar] = useState('');
     const [eliminando, setEliminando] = useState(false);
     const eliminacionEnCurso = useRef(false);
+    useEffect(() => {
+        const id = setInterval(() => setHoy(fechaHospital()), ACTUALIZACION_MS);
+        return () => clearInterval(id);
+    }, []);
     const semana = useResource(
         () => listarTurnos(lunes, sumarDias(lunes, 7)),
         [lunes],
@@ -152,6 +157,7 @@ export default function TurnosPage() {
     );
     const estadoTabla = semana.status === 'success' && filas.length === 0 ? 'empty' : semana.status;
     const periodo = formatoSemana.formatRange(fechaUTC(lunes), fechaUTC(sumarDias(lunes, 6)));
+    const eliminacionBloqueada = !!turnoAEliminar && turnoAEliminar.fecha <= hoy;
 
     function alternarPersona(persona: OpcionPersonal) {
         setFiltroPersonas((seleccion) => seleccion.some((p) => p.id === persona.id)
@@ -175,6 +181,10 @@ export default function TurnosPage() {
 
     async function confirmarEliminacion() {
         if (!turnoAEliminar || eliminacionEnCurso.current) return;
+        if (turnoAEliminar.fecha <= fechaHospital()) {
+            setErrorEliminar(TURNO_HISTORICO_MENSAJE);
+            return;
+        }
         eliminacionEnCurso.current = true;
         setEliminando(true);
         setErrorEliminar('');
@@ -221,7 +231,7 @@ export default function TurnosPage() {
                 headerClassName: esHoy ? 'bg-primary-ink font-bold text-primary-soft align-middle' : undefined,
                 skeleton: 'w-full h-7',
                 cell: (f) => (
-                    <CeldaTurnos turnos={f.turnos} fecha={fecha}
+                    <CeldaTurnos turnos={f.turnos} fecha={fecha} hoy={hoy}
                         onEdit={(turno) => { setAviso(''); setFormulario({ turno }); }}
                         onDelete={(turno) => { setAviso(''); setErrorEliminar(''); setTurnoAEliminar(turno); }}
                     />
@@ -232,7 +242,7 @@ export default function TurnosPage() {
 
     return (
         <>
-            <PageHeader title="Turnos" actions={nuevoTurno} />
+            <PageHeader title="Turnos" subtitle={TURNO_HISTORICO_MENSAJE} actions={nuevoTurno} />
             <section aria-label="Semana de turnos" className="mb-4 rounded-lg border border-border bg-card px-4 py-4 sm:px-5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <h2 aria-live="polite" className="text-2xl font-semibold tracking-tight text-primary-ink sm:text-3xl">
@@ -301,6 +311,7 @@ export default function TurnosPage() {
             {formulario && (
                 <TurnoFormDialog
                     fechaInicial={lunes === lunesActual ? hoy : lunes}
+                    hoy={hoy}
                     turno={formulario.turno}
                     areas={areas}
                     onClose={() => setFormulario(null)}
@@ -314,7 +325,7 @@ export default function TurnosPage() {
                     footer={
                         <>
                             <Button variant="outline" disabled={eliminando} onClick={() => setTurnoAEliminar(null)}>Cancelar</Button>
-                            <Button variant="destructive" disabled={eliminando} onClick={confirmarEliminacion}>
+                            <Button variant="destructive" disabled={eliminando || eliminacionBloqueada} onClick={confirmarEliminacion}>
                                 {eliminando ? 'Eliminando…' : 'Eliminar turno'}
                             </Button>
                         </>
@@ -323,7 +334,11 @@ export default function TurnosPage() {
                     <p className="text-sm text-muted-foreground">
                         {turnoAEliminar.area} · {horaLegible(turnoAEliminar.hora_inicio)} – {horaLegible(turnoAEliminar.hora_fin)}
                     </p>
-                    {errorEliminar && <Alert tone="danger" title="No se pudo eliminar" className="mt-3">{errorEliminar}</Alert>}
+                    {(eliminacionBloqueada || errorEliminar) && (
+                        <Alert tone="danger" title="No se pudo eliminar" className="mt-3">
+                            {eliminacionBloqueada ? TURNO_HISTORICO_MENSAJE : errorEliminar}
+                        </Alert>
+                    )}
                 </Dialog>
             )}
         </>

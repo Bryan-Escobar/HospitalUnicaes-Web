@@ -7,6 +7,8 @@ export const TIPOS_TURNO = {
 
 export type EstadoAsistencia = 'programado' | 'presente' | 'tarde' | 'sin_conexion' | 'ausente' | 'sin_cuenta';
 
+export const TURNO_HISTORICO_MENSAJE = 'Solo se pueden editar o eliminar turnos que empiezan a partir de mañana.';
+
 export interface CrearTurnoBody {
     personal_id: string;
     area: string;
