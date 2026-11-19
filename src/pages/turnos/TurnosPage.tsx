@@ -73,7 +73,7 @@ function CeldaTurnos({ turnos, fecha }: { turnos: Turno[]; fecha: string }) {
                 const asistencia = turno.estado_asistencia ? ESTILOS_ASISTENCIA[turno.estado_asistencia] : null;
                 return (
                     <li key={turno.id} className={cn(
-                        'rounded-sm border px-1.5 py-1 text-xs leading-4',
+                        'rounded-sm border px-1 py-1 text-xs leading-4 2xl:px-1.5',
                         asistencia?.estilo ?? 'border-primary-200 bg-primary-soft text-primary-ink',
                     )}>
                         <span className="block font-semibold tabular">
@@ -161,6 +161,7 @@ export default function TurnosPage() {
         {
             header: vista === 'area' ? 'Área · persona' : 'Persona · tipo',
             className: 'w-44 align-top',
+            headerClassName: 'align-middle',
             skeleton: 'w-28',
             cell: (f) => (
                 <div className="py-1">
@@ -177,7 +178,7 @@ export default function TurnosPage() {
             return {
                 header: esHoy ? `${dia} · hoy` : dia,
                 className: cn('px-2 align-top', esHoy && 'border-x border-primary-200 bg-primary-100'),
-                headerClassName: esHoy ? 'bg-primary-ink font-bold text-primary-soft align-middle' : undefined,
+                headerClassName: cn('align-middle', esHoy && 'bg-primary-ink font-bold text-primary-soft'),
                 skeleton: 'w-full h-7',
                 cell: (f) => <CeldaTurnos turnos={f.turnos} fecha={fecha} />,
             };

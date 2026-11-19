@@ -32,14 +32,23 @@ function columnas(miPerfilId: string | undefined, acciones: { editar: (p: Person
             cell: (p) => (
                 <span className="flex items-center gap-3">
                     <Avatar name={nombreCompleto(p)} size="sm" />
-                    <span>
-                        <span className="block font-semibold whitespace-nowrap">{nombreCompleto(p)}</span>
+                    <span className="min-w-0">
+                        <span className="block font-semibold wrap-anywhere">{nombreCompleto(p)}</span>
                         <span className="block text-xs text-muted-foreground">{p.codigo_empleado}</span>
                     </span>
                 </span>
             ),
         },
-        { header: 'Correo', cell: (p) => p.email ?? sinDato, skeleton: 'w-44' },
+        {
+            header: 'Correo',
+            className: 'wrap-anywhere',
+            skeleton: 'w-44',
+            cell: ({ email }) => {
+                if (!email) return sinDato;
+                const dominio = email.lastIndexOf('@');
+                return <>{email.slice(0, dominio)}<wbr />{email.slice(dominio)}</>;
+            },
+        },
         {
             header: 'Rol',
             cell: (p) => (
@@ -65,7 +74,7 @@ function columnas(miPerfilId: string | undefined, acciones: { editar: (p: Person
             header: '',
             className: 'text-right w-44',
             cell: (p) => (
-                <span className="flex justify-end gap-4">
+                <span className="flex justify-end gap-2 2xl:gap-4">
                     <Button variant="link" size="sm" onClick={() => acciones.editar(p)} aria-label={`Editar a ${nombreCompleto(p)}`}>
                         Editar
                     </Button>

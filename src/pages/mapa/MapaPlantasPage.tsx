@@ -17,7 +17,7 @@ import { useMapaPlantas } from './useMapaPlantas';
 
 const PLANTAS = [
     { numero: 3, nombre: 'VIP', habitaciones: 5, columnas: 'sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5' },
-    { numero: 2, nombre: 'Semiprivadas', habitaciones: 6, columnas: 'md:grid-cols-2 xl:grid-cols-3' },
+    { numero: 2, nombre: 'Semiprivadas', habitaciones: 6, columnas: 'md:grid-cols-2 2xl:grid-cols-3' },
 ] as const;
 
 const ESTADOS: Record<EstadoCama, { etiqueta: string; estilo: string }> = {
