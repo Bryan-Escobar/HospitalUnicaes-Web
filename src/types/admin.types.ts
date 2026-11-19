@@ -19,17 +19,3 @@ export interface Paciente {
   ultimaConsulta: string
   medico: string
 }
-
-export interface Reportes {
-  ocupacionHistorica: { dia: string; ocupadas: number }[]
-  ambulanciaPorSemana: { semana: string; servicios: number }[]
-  laboratorio: Record<EstadoLaboratorio, number>
-  citasPorDoctor: { doctor: string; citas: number }[]
-export interface PerfilAdmin {
-  nombre: string
-  cargo: string
-  correo: string
-  telefono: string
-  passwordCambiada: string
-  sesionesActivas: number
-}
