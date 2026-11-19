@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { FlaskConical } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 
 import { PageHeader, Toolbar } from '@/components/layout/AdminLayout';
 import { Button } from '@/components/ui/button';
@@ -18,15 +19,15 @@ import type { FiltroLaboratorio, OrdenLaboratorio } from '@/types/laboratorio.ty
 import { fechaHoraLaboratorio, nombreCompleto } from './formato-laboratorio';
 import { OrdenLaboratorioDialog } from './OrdenLaboratorioDialog';
 
-const estados = ['todas', ...ESTADOS_LABORATORIO] as const;
-const filtrosIniciales = {
-    estado: 'todas', doctor: '', paciente: '', examen: '', page: 1,
-} satisfies Partial<FiltroLaboratorio>;
+const estados = ['todas', 'sin_completar', ...ESTADOS_LABORATORIO] as const;
+const filtrosSinFecha = { estado: 'todas', doctor: '', paciente: '', examen: '' } as const;
 
 export default function LaboratorioPage() {
+    const [params] = useSearchParams();
     const [filtro, setFiltro] = useState<FiltroLaboratorio>(() => {
-        const hoy = fechaHospital();
-        return { ...filtrosIniciales, desde: hoy, hasta: hoy };
+        const sinCompletar = params.get('estado') === 'sin_completar';
+        const fecha = sinCompletar ? '' : fechaHospital();
+        return { ...filtrosSinFecha, estado: sinCompletar ? 'sin_completar' : 'todas', desde: fecha, hasta: fecha, page: 1 };
     });
     const [ordenId, setOrdenId] = useState<string | null>(null);
     const { doctor, desde, hasta, paciente, examen } = filtro;
@@ -38,7 +39,11 @@ export default function LaboratorioPage() {
     );
     const doctores = useResource(listarDoctoresLaboratorio);
     const conteo = contadores.status === 'success' ? contadores.data : null;
-    const total = conteo && conteo.pendiente + conteo.en_proceso + conteo.completado;
+    const conteos = conteo && {
+        ...conteo,
+        sin_completar: conteo.pendiente + conteo.en_proceso,
+        todas: conteo.pendiente + conteo.en_proceso + conteo.completado,
+    };
     const hayFiltros = filtro.estado !== 'todas' || Boolean(doctor || paciente || examen);
     const filtrado = hayFiltros || Boolean(desde || hasta);
     const hoy = fechaHospital();
@@ -80,9 +85,9 @@ export default function LaboratorioPage() {
                             selected={filtro.estado === estado}
                             onClick={() => actualizarFiltro({ estado })}
                         >
-                            {estado === 'todas' ? 'Todas' : estadoLabel(estado)}
+                            {estado === 'todas' ? 'Todas' : estado === 'sin_completar' ? 'Sin completar' : estadoLabel(estado)}
                             {' '}
-                            {conteo && <span className="tabular">{estado === 'todas' ? total : conteo[estado]}</span>}
+                            {conteos && <span className="tabular">{conteos[estado]}</span>}
                         </FilterChip>
                     ))}
                 </div>
@@ -133,7 +138,7 @@ export default function LaboratorioPage() {
                     <Button variant="outline" onClick={() => actualizarFiltro({ desde: hoy, hasta: hoy })}>Hoy</Button>
                 )}
                 {hayFiltros && (
-                    <Button variant="ghost" onClick={() => actualizarFiltro(filtrosIniciales)}>Limpiar filtros</Button>
+                    <Button variant="ghost" onClick={() => actualizarFiltro(filtrosSinFecha)}>Limpiar filtros</Button>
                 )}
             </Toolbar>
 

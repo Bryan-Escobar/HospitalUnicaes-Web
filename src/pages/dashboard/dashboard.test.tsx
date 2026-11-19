@@ -11,9 +11,9 @@ import Dashboard from '@/pages/dashboard/dashboard';
 
 const resumen: ResumenDashboard = {
     ocupacion: {
-        vip: { ocupadas: 2, disponibles: 3, total: 5 },
+        vip: { ocupadas: 2, disponibles: 2, total: 5 },
         semiprivada: { ocupadas: 7, disponibles: 5, total: 12 },
-        total: { ocupadas: 9, disponibles: 8, total: 17 },
+        total: { ocupadas: 9, disponibles: 7, total: 17 },
     },
     personal_de_turno: { total: 5, por_tipo: [{ tipo: 'Doctor', cantidad: 3 }, { tipo: 'Enfermero/a', cantidad: 2 }] },
     ambulancia: { estado: 'en_mantenimiento', solicitud_activa_id: null },
@@ -39,9 +39,9 @@ describe('Dashboard', () => {
         servicio.obtenerResumenDashboard.mockResolvedValue(resumen);
         renderDashboard();
 
-        expect(await screen.findByText('VIP-301 a VIP-305 · 3 libres')).toBeInTheDocument();
+        expect(await screen.findByText('VIP-301 a VIP-305 · 2 libres')).toBeInTheDocument();
         expect(screen.getByText('HAB-201 a HAB-206 · 5 libres')).toBeInTheDocument();
-        expect(screen.getByText('53 % · 8 camas libres')).toBeInTheDocument();
+        expect(screen.getByText('53 % · 7 camas libres')).toBeInTheDocument();
         expect(screen.getByText('En Mantenimiento')).toBeInTheDocument();
         expect(screen.getByText('4 atendidas · 2 por atender')).toBeInTheDocument();
         expect(screen.getByText('Enfermero/a')).toBeInTheDocument();

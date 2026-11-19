@@ -14,6 +14,7 @@ import type {
 import * as demo from './laboratorio.mock';
 
 export const ESTADOS_LABORATORIO = ['pendiente', 'en_proceso', 'completado'] as const;
+const ESTADOS_SIN_COMPLETAR = ['pendiente', 'en_proceso'] as const;
 
 const persona = 'id,nombres,apellidos';
 const vacio = { items: [], total: 0 };
@@ -53,12 +54,15 @@ function consultaOrdenes(rango: RangoLaboratorio, soloConteo = false) {
 export async function listarOrdenes(filtro: FiltroLaboratorio): Promise<Paginado<OrdenLaboratorio>> {
     const offset = (filtro.page - 1) * PAGE_SIZE;
     if (isDemoMode) {
-        const ordenes = demo.filtrarOrdenes(filtro).filter((orden) => filtro.estado === 'todas' || orden.estado === filtro.estado);
+        const estados: readonly EstadoLaboratorio[] = filtro.estado === 'todas' ? ESTADOS_LABORATORIO
+            : filtro.estado === 'sin_completar' ? ESTADOS_SIN_COMPLETAR : [filtro.estado];
+        const ordenes = demo.filtrarOrdenes(filtro).filter((orden) => estados.includes(orden.estado));
         return responder({ items: ordenes.slice(offset, offset + PAGE_SIZE), total: ordenes.length }, vacio);
     }
 
     const query = consultaOrdenes(filtro);
-    if (filtro.estado !== 'todas') query.eq('estado', filtro.estado);
+    if (filtro.estado === 'sin_completar') query.in('estado', ESTADOS_SIN_COMPLETAR);
+    else if (filtro.estado !== 'todas') query.eq('estado', filtro.estado);
     const { data, count, error } = await query
         .order('fecha_solicitud', { ascending: false }).order('id', { ascending: false })
         .range(offset, offset + PAGE_SIZE - 1)

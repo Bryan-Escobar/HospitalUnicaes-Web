@@ -1,6 +1,6 @@
 import { ApiError } from '@/lib/api';
 import { fechaHospital, instanteHospital, lunesDe, sumarDias } from '@/lib/fechas-hospital';
-import type { CrearTurnoBody, Turno } from '@/types/turnos.types';
+import { TURNO_HISTORICO_MENSAJE, type CrearTurnoBody, type Turno } from '@/types/turnos.types';
 import * as personalDemo from './personal.mock';
 
 const semilla = [
@@ -28,6 +28,7 @@ const ejemplos = semilla.flatMap((turno, i) =>
     [0, 2, 4].map((dia) => conIntervalo({ ...turno, fecha: sumarDias(lunes, dia) }, `ejemplo-${i}-${dia}`)),
 );
 const registrados: ReturnType<typeof conIntervalo>[] = [];
+let siguienteId = 1;
 
 export function listar(desde: string, hasta: string, conEjemplos = true): Turno[] {
     const inicio = Date.parse(instanteHospital(desde));
@@ -51,18 +52,46 @@ export function listar(desde: string, hasta: string, conEjemplos = true): Turno[
     });
 }
 
-export function crear(body: CrearTurnoBody) {
-    if (!personalDemo.obtener(body.personal_id)?.activo) {
+function validar(turno: ReturnType<typeof conIntervalo>, personalAnterior?: string) {
+    if (turno.personal_id !== personalAnterior && !personalDemo.obtener(turno.personal_id)?.activo) {
         throw new ApiError(422, 'VALIDACION', 'Selecciona un miembro activo del personal.');
     }
 
-    const turno = conIntervalo(body, `turno-${registrados.length + 1}`);
     const inicio = Date.parse(turno.inicio);
     const fin = Date.parse(turno.fin);
     if ([...ejemplos, ...registrados].some((t) =>
-        t.personal_id === turno.personal_id && Date.parse(t.inicio) < fin && Date.parse(t.fin) > inicio,
+        t.id !== turno.id && t.personal_id === turno.personal_id && Date.parse(t.inicio) < fin && Date.parse(t.fin) > inicio,
     )) {
         throw new ApiError(409, 'TURNO_SOLAPADO', 'El empleado ya tiene otro turno que se cruza con ese horario.');
     }
+}
+
+export function crear(body: CrearTurnoBody) {
+    const turno = conIntervalo(body, `turno-${siguienteId}`);
+    validar(turno);
+    siguienteId += 1;
     registrados.push(turno);
+}
+
+function localizar(id: string) {
+    const turnos = id.startsWith('ejemplo-') ? ejemplos : registrados;
+    const indice = turnos.findIndex((turno) => turno.id === id);
+    if (indice === -1) throw new ApiError(404, 'TURNO_NO_ENCONTRADO', 'El turno ya no está disponible.');
+    if (turnos[indice].fecha <= fechaHospital()) throw new ApiError(409, 'TURNO_HISTORICO', TURNO_HISTORICO_MENSAJE);
+    return { turnos, indice };
+}
+
+export function actualizar(id: string, body: CrearTurnoBody) {
+    const { turnos, indice } = localizar(id);
+    if (body.fecha <= fechaHospital()) {
+        throw new ApiError(409, 'TURNO_HISTORICO', 'La nueva fecha de inicio debe ser a partir de mañana.');
+    }
+    const turno = conIntervalo(body, id);
+    validar(turno, turnos[indice].personal_id);
+    turnos[indice] = turno;
+}
+
+export function eliminar(id: string) {
+    const { turnos, indice } = localizar(id);
+    turnos.splice(indice, 1);
 }

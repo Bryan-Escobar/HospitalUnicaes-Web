@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { expect, it, vi } from 'vitest';
 
 import { fechaHospital, instanteHospital, lunesDe, sumarDias } from '@/lib/fechas-hospital';
@@ -50,6 +50,59 @@ it('actualiza la asistencia de recepción sin recargar y muestra el personal sin
 
         await act(async () => vi.advanceTimersByTimeAsync(10_000));
         expect(screen.getByText('Presente').closest('li')).toHaveClass('bg-success-soft');
+    } finally {
+        pantalla.unmount();
+        listar.mockRestore();
+        vi.useRealTimers();
+    }
+});
+
+it('protege los turnos de hoy y anteriores, incluido un nocturno, y bloquea una edición abierta al cambiar de día', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-11-18T23:59:55-06:00'));
+    const turno: Turno = {
+        id: 'turno-hoy',
+        personal_id: 'demo-6',
+        nombres: 'Fernando',
+        apellidos: 'Aguilar Soto',
+        tipo_personal: 'Médico de emergencia',
+        area: 'Emergencia',
+        fecha: '2026-11-18',
+        hora_inicio: '19:00',
+        hora_fin: '07:00',
+        tipo_turno: 'noche',
+        inicio: '2026-11-18T19:00:00-06:00',
+        fin: '2026-11-19T07:00:00-06:00',
+        estado_asistencia: 'presente',
+    };
+    const turnos: Turno[] = [
+        { ...turno, id: 'turno-ayer', fecha: '2026-11-17', inicio: '2026-11-17T19:00:00-06:00',
+            fin: '2026-11-18T07:00:00-06:00', estado_asistencia: 'ausente' },
+        turno,
+        { ...turno, id: 'turno-manana', fecha: '2026-11-19', inicio: '2026-11-19T19:00:00-06:00',
+            fin: '2026-11-20T07:00:00-06:00', estado_asistencia: 'programado' },
+    ];
+    const listar = vi.spyOn(turnosService, 'listarTurnos').mockResolvedValue(turnos);
+    const pantalla = render(<TurnosPage />);
+    try {
+        await act(async () => {});
+        expect(screen.getAllByText('Presente')).toHaveLength(2);
+        expect(screen.getAllByText('Ausente')).toHaveLength(2);
+        for (const accion of ['Editar', 'Eliminar']) {
+            const botones = screen.getAllByRole('button', { name: new RegExp(`^${accion} turno`) });
+            expect(botones).toHaveLength(2);
+            expect(botones[0]).toHaveAccessibleName(/2026-11-19, 7:00 PM/);
+            expect(botones[1]).toHaveAccessibleName(/2026-11-20, 12:00 AM/);
+        }
+
+        fireEvent.click(screen.getByRole('button', { name: /Editar turno.*2026-11-19, 7:00 PM/ }));
+        const dialogo = within(screen.getByRole('dialog', { name: 'Editar turno' }));
+        expect(dialogo.getByLabelText('Fecha de inicio')).toHaveAttribute('min', '2026-11-19');
+        expect(dialogo.getByRole('button', { name: 'Guardar turno' })).toBeEnabled();
+
+        await act(async () => vi.advanceTimersByTimeAsync(10_000));
+        expect(dialogo.getByRole('button', { name: 'Guardar turno' })).toBeDisabled();
+        expect(dialogo.getByRole('alert')).toHaveTextContent('Turno de solo lectura');
     } finally {
         pantalla.unmount();
         listar.mockRestore();
@@ -149,4 +202,50 @@ it('registra un turno nocturno, muestra ambas partes y rechaza otro turno que se
 
     expect(await siguiente.findByRole('alert')).toHaveTextContent('Solapamiento de turnos');
     expect(siguiente.getByLabelText('Hora de inicio')).toHaveValue('6:00 AM');
+}, 10_000);
+
+it('edita un turno, conserva los datos al detectar un solapamiento y confirma la eliminación', async () => {
+    const fecha = sumarDias(lunesDe(fechaHospital()), 21);
+    const turno = {
+        fecha, personal_id: 'demo-6', area: 'Emergencia',
+        hora_inicio: '08:00', hora_fin: '10:00', tipo_turno: 'manana',
+    } as const;
+    await turnosService.crearTurno(turno);
+    await turnosService.crearTurno({ ...turno, hora_inicio: '11:00', hora_fin: '13:00' });
+    const registrados = await turnosService.listarTurnos(fecha, sumarDias(fecha, 1));
+    const turnoEditable = registrados.find((t) => t.hora_inicio === '08:00')!;
+    let eliminado = false;
+    try {
+        render(<TurnosPage />);
+        for (let i = 0; i < 3; i += 1) fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
+        fireEvent.click(await screen.findByRole('button', { name: /Editar turno de Fernando.*8:00 AM/ }));
+        const formulario = within(screen.getByRole('dialog', { name: 'Editar turno' }));
+        expect(formulario.getByLabelText('Fecha de inicio')).toHaveValue(fecha);
+        expect(formulario.getByLabelText('Área')).toHaveValue('Emergencia');
+        expect(formulario.getByLabelText('Hora de inicio')).toHaveValue('8:00 AM');
+        const fin = formulario.getByLabelText('Hora de fin');
+        fireEvent.change(fin, { target: { value: '12:00 PM' } });
+        fireEvent.click(formulario.getByRole('button', { name: 'Guardar turno' }));
+        expect(await formulario.findByRole('alert')).toHaveTextContent('Solapamiento de turnos');
+        expect(fin).toHaveValue('12:00 PM');
+
+        fireEvent.change(fin, { target: { value: '11:00 AM' } });
+        fireEvent.click(formulario.getByRole('button', { name: 'Guardar turno' }));
+        expect(await screen.findByText('Turno actualizado')).toBeInTheDocument();
+        expect((await screen.findByText('8:00 AM')).parentElement).toHaveTextContent('8:00 AM – 11:00 AM');
+
+        const eliminar = screen.getByRole('button', { name: /Eliminar turno de Fernando.*8:00 AM/ });
+        fireEvent.click(eliminar);
+        fireEvent.click(within(screen.getByRole('dialog', { name: 'Eliminar turno' })).getByRole('button', { name: 'Cancelar' }));
+        expect(eliminar).toBeInTheDocument();
+
+        fireEvent.click(eliminar);
+        fireEvent.click(within(screen.getByRole('dialog', { name: 'Eliminar turno' })).getByRole('button', { name: 'Eliminar turno' }));
+        expect(await screen.findByText('Turno eliminado')).toBeInTheDocument();
+        eliminado = true;
+        await waitFor(() => expect(screen.queryByText('8:00 AM')).not.toBeInTheDocument());
+        expect(await screen.findByText('1:00 PM')).toBeInTheDocument();
+    } finally {
+        await Promise.all(registrados.filter((t) => !eliminado || t.id !== turnoEditable.id).map((t) => turnosService.eliminarTurno(t.id)));
+    }
 }, 10_000);

@@ -203,7 +203,7 @@ export default function Dashboard() {
                 </Card>
 
                 <Card className="min-h-[300px]">
-                    <CardHeader title="Laboratorio" description="Órdenes sin completar" action={<VerMas to="/laboratorio">Ver órdenes</VerMas>} />
+                    <CardHeader title="Laboratorio" description="Órdenes sin completar" action={<VerMas to="/laboratorio?estado=sin_completar">Ver órdenes</VerMas>} />
                     <CardContent className="pt-4">
                         <ResourceView
                             resource={laboratorio}

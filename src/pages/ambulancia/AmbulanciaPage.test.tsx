@@ -63,6 +63,35 @@ it('persiste ambos cambios de mantenimiento y actualiza el panel cuando se despa
     await waitFor(() => expect(poner).toBeEnabled(), { timeout: 7_000 });
 }, 10_000);
 
+it('permite consultar las solicitudes pendientes más allá de la primera página', async () => {
+    let total = 11;
+    peticion.mockImplementation(async (path) => {
+        if (path === '/ambulancia') {
+            return { id: 'unidad', placa: 'AMB-001', estado: 'disponible', updated_at: fecha, solicitud_activa: null };
+        }
+        const pagina = Number(new URLSearchParams(path.split('?')[1]).get('pagina'));
+        const items = pagina === 1
+            ? Array.from({ length: 10 }, (_, i) => ({ id: i, direccion_origen: `Dirección ${i + 1}`, fecha_solicitud: fecha }))
+            : total === 11 ? [{ id: 10, direccion_origen: 'Dirección 11', fecha_solicitud: fecha }] : [];
+        return { items, paginacion: { total } };
+    });
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(<MemoryRouter><QueryClientProvider client={queryClient}><AmbulanciaPage /></QueryClientProvider></MemoryRouter>);
+
+    expect(await screen.findByText('Mostrando 1–10 de 11')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Siguiente/ }));
+    expect(await screen.findByText(/Dirección 11/)).toBeInTheDocument();
+    expect(screen.getByText('Mostrando 11–11 de 11')).toBeInTheDocument();
+    expect(peticion).toHaveBeenCalledWith('/ambulancia/solicitudes?estado=pendiente&pagina=2&por_pagina=10', expect.anything());
+    fireEvent.click(screen.getByRole('button', { name: /Anterior/ }));
+    expect(await screen.findByText('Mostrando 1–10 de 11')).toBeInTheDocument();
+
+    total = 10;
+    fireEvent.click(screen.getByRole('button', { name: /Siguiente/ }));
+    expect(await screen.findByText(/^Dirección 1 ·/)).toBeInTheDocument();
+    expect(screen.queryByRole('navigation', { name: 'Paginación' })).not.toBeInTheDocument();
+});
+
 it('envía los filtros combinados, vuelve a la primera página y permite consultar el detalle', async () => {
     const registro: EntradaBitacora = {
         id: 'registro', estado_anterior: 'en_servicio', estado_nuevo: 'disponible',
