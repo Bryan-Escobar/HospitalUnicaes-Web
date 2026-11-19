@@ -68,15 +68,19 @@ function CeldaTurnos({ turnos, fecha }: { turnos: Turno[]; fecha: string }) {
     return (
         <ul className="space-y-1">
             {delDia.map((turno) => {
-                const inicio = Date.parse(turno.inicio) < inicioDia ? '00:00' : turno.hora_inicio.slice(0, 5);
-                const fin = Date.parse(turno.fin) >= finDia ? '24:00' : turno.hora_fin.slice(0, 5);
+                const inicio = Date.parse(turno.inicio) < inicioDia ? '00:00' : turno.hora_inicio;
+                const fin = Date.parse(turno.fin) >= finDia ? '00:00' : turno.hora_fin;
                 const asistencia = turno.estado_asistencia ? ESTILOS_ASISTENCIA[turno.estado_asistencia] : null;
                 return (
                     <li key={turno.id} className={cn(
                         'rounded-sm border px-1.5 py-1 text-xs leading-4',
                         asistencia?.estilo ?? 'border-primary-200 bg-primary-soft text-primary-ink',
                     )}>
-                        <span className="block whitespace-nowrap font-semibold tabular">{inicio}–{fin}</span>
+                        <span className="block font-semibold tabular">
+                            <span className="whitespace-nowrap">{horaLegible(inicio)}</span>
+                            {' – '}
+                            <span className="whitespace-nowrap">{horaLegible(fin)}</span>
+                        </span>
                         <span className="block break-words">{turno.area}</span>
                         <span className="block">{TIPOS_TURNO[turno.tipo_turno]}</span>
                         {asistencia && <span className="block font-semibold">{asistencia.etiqueta}</span>}
