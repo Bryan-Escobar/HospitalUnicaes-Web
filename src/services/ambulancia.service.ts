@@ -26,10 +26,15 @@ export function cambiarEstadoAmbulancia(estado: 'disponible' | 'en_mantenimiento
     });
 }
 
-export async function listarSolicitudesPendientes(): Promise<Paginado<SolicitudPendiente>> {
-    if (isDemoMode) return responder(demo.solicitudesPendientes, { items: [], total: 0 });
+export async function listarSolicitudesPendientes(pagina = 1): Promise<Paginado<SolicitudPendiente>> {
+    if (isDemoMode) {
+        const { items, total } = demo.solicitudesPendientes;
+        const desde = (pagina - 1) * PAGE_SIZE;
+        return responder({ items: items.slice(desde, desde + PAGE_SIZE), total }, { items: [], total: 0 });
+    }
+    const query = new URLSearchParams({ estado: 'pendiente', pagina: String(pagina), por_pagina: String(PAGE_SIZE) });
     const { items, paginacion } = await apiFetch<PaginaApi<SolicitudPendiente>>(
-        `/ambulancia/solicitudes?estado=pendiente&por_pagina=${PAGE_SIZE}`,
+        `/ambulancia/solicitudes?${query}`,
         { cache: 'no-store' },
     );
     return { items, total: paginacion.total };

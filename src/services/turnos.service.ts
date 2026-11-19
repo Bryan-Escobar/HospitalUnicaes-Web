@@ -41,15 +41,39 @@ export async function crearTurno(body: CrearTurnoBody): Promise<void> {
     if (isDemoMode) return demo.crear(body);
 
     const { error } = await supabase.from('turnos_personal').insert(body);
-    if (!error) return;
+    if (error) lanzarErrorTurno(error);
+}
+
+export async function actualizarTurno(id: string, body: CrearTurnoBody): Promise<void> {
+    if (isDemoMode) return demo.actualizar(id, body);
+
+    const { data, error } = await supabase.from('turnos_personal')
+        .update(body).eq('id', id).select('id').maybeSingle();
+    if (error) lanzarErrorTurno(error);
+    if (!data) throw new ApiError(404, 'TURNO_NO_ENCONTRADO', 'El turno ya no está disponible.');
+}
+
+export async function eliminarTurno(id: string): Promise<void> {
+    if (isDemoMode) return demo.eliminar(id);
+
+    const { data, error } = await supabase.from('turnos_personal')
+        .delete().eq('id', id).select('id').maybeSingle();
+    if (error) lanzarErrorTurno(error);
+    if (!data) throw new ApiError(404, 'TURNO_NO_ENCONTRADO', 'El turno ya no está disponible.');
+}
+
+function lanzarErrorTurno(error: { code: string; message: string }): never {
     if (error.message.startsWith('TURNO_SOLAPADO:')) {
         throw new ApiError(409, 'TURNO_SOLAPADO', error.message.slice('TURNO_SOLAPADO:'.length).trim());
     }
     if (error.code === '23P01') {
         throw new ApiError(409, 'TURNO_SOLAPADO', 'El empleado ya tiene otro turno que se cruza con ese horario.');
     }
+    if (error.message.startsWith('AREA_INVALIDA:')) {
+        throw new ApiError(422, 'AREA_INVALIDA', error.message.slice('AREA_INVALIDA:'.length).trim());
+    }
     if (error.code === '42501') {
-        throw new ApiError(403, 'ACCESO_DENEGADO', 'Tu sesión no tiene permisos para registrar turnos.');
+        throw new ApiError(403, 'ACCESO_DENEGADO', 'Tu sesión no tiene permisos para gestionar turnos.');
     }
     throw error;
 }

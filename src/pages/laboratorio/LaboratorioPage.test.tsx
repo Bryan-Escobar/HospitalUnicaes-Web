@@ -26,6 +26,26 @@ describe('Laboratorio', () => {
         vi.restoreAllMocks();
     });
 
+    it('abre desde el dashboard las órdenes sin completar, incluso de días anteriores', async () => {
+        sessionStorage.setItem('hu-demo-session', 'administrador@hospital.test');
+        render(<MemoryRouter initialEntries={['/dashboard']}><App /></MemoryRouter>);
+        const enlace = await screen.findByRole('link', { name: 'Ver órdenes' });
+        const tarjeta = within(enlace.closest('div[data-slot="card"]') ?? screen.getByRole('main'));
+        await tarjeta.findByText('En Proceso');
+        const cantidad = ['Pendiente', 'En Proceso'].reduce((total, estado) => {
+            const fila = tarjeta.getByText(estado).closest('li');
+            return total + Number(fila?.querySelector('.tabular')?.textContent);
+        }, 0);
+        fireEvent.click(enlace);
+
+        expect(await screen.findByRole('button', { name: `Sin completar ${cantidad}`, pressed: true })).toBeInTheDocument();
+        expect(screen.getByLabelText('Desde')).toHaveValue('');
+        expect(screen.getByLabelText('Hasta')).toHaveValue('');
+        const tabla = within(screen.getByRole('table', { name: 'Órdenes de laboratorio' }));
+        expect(await tabla.findByRole('button', { name: 'Ver detalle de la orden #1039' })).toBeInTheDocument();
+        expect(tabla.queryByText('Completado')).not.toBeInTheDocument();
+    });
+
     it('combina los filtros, cuenta todo el rango y abre el historial de la orden', async () => {
         abrirLaboratorio('administrador@hospital.test');
 

@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { Ambulance, Check, ClipboardList, Info, Pause, Play } from 'lucide-react';
@@ -8,12 +9,14 @@ import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { ErrorState } from '@/components/ui/feedback-state';
+import { Pagination } from '@/components/ui/pagination';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { useResource } from '@/hooks/useResource';
 import { ApiError } from '@/lib/api';
 import { fechaHoraLegible } from '@/lib/fechas-hospital';
 import { cn } from '@/lib/utils';
+import { PAGE_SIZE } from '@/services/admin.service';
 import { cambiarEstadoAmbulancia, listarSolicitudesPendientes, obtenerAmbulancia } from '@/services/ambulancia.service';
 import type { EstadoAmbulancia } from '@/types/admin.types';
 import { ESTADOS_SOLICITUD, PRIORIDADES_EMERGENCIA, TIPOS_EMERGENCIA } from '@/types/ambulancia.types';
@@ -38,6 +41,7 @@ function Dato({ label, value }: { label: string; value: string | null }) {
 
 export default function AmbulanciaPage() {
     const queryClient = useQueryClient();
+    const [pagina, setPagina] = useState(1);
     const mantenimiento = useMutation({
         mutationFn: cambiarEstadoAmbulancia,
         onSuccess: async (ambulancia) => {
@@ -53,7 +57,13 @@ export default function AmbulanciaPage() {
         refetchOnWindowFocus: 'always',
         gcTime: 0,
     });
-    const solicitudes = useResource(listarSolicitudesPendientes, [], undefined, { refreshMs: ACTUALIZACION_MS });
+    const solicitudes = useResource(
+        () => listarSolicitudesPendientes(pagina), [pagina], undefined, { refreshMs: ACTUALIZACION_MS },
+    );
+    const ultimaPagina = Math.max(1, Math.ceil((solicitudes.data?.total ?? 0) / PAGE_SIZE));
+    useEffect(() => {
+        if (solicitudes.status === 'empty' && pagina > ultimaPagina) setPagina(ultimaPagina);
+    }, [solicitudes.status, pagina, ultimaPagina]);
     const a = recurso.data;
     const servicio = a?.solicitud_activa;
     const puedeCambiarEstado = recurso.isSuccess && !mantenimiento.isPending;
@@ -173,13 +183,19 @@ export default function AmbulanciaPage() {
                 <Card>
                     <CardHeader title="Solicitudes pendientes" />
                     <CardContent className="pt-3">
-                        {solicitudes.status === 'empty' ? (
+                        {solicitudes.status === 'empty' && solicitudes.data?.total === 0 ? (
                             <p className="flex items-center gap-3 text-sm">
                                 <Check className="size-5 text-success-ink" aria-hidden />
                                 Ninguna en espera.
                             </p>
                         ) : (
-                            <ResourceView resource={solicitudes}>
+                            <ResourceView
+                                resource={solicitudes.status === 'empty' && pagina > ultimaPagina
+                                    ? { ...solicitudes, status: 'loading' } : solicitudes}
+                                empty={{ title: 'No hay solicitudes en esta página', action: (
+                                    <Button variant="outline" onClick={() => { setPagina(1); solicitudes.refetch(); }}>Volver al inicio de la cola</Button>
+                                ) }}
+                            >
                                 {({ items, total }) => (
                                     <>
                                         <ul className="divide-y divide-border">
@@ -192,7 +208,9 @@ export default function AmbulanciaPage() {
                                                 </li>
                                             ))}
                                         </ul>
-                                        {total > items.length && <p className="mt-2 text-xs text-muted-foreground">Mostrando {items.length} de {total} pendientes</p>}
+                                        {total > PAGE_SIZE && (
+                                            <Pagination page={pagina} pageSize={PAGE_SIZE} total={total} onPageChange={setPagina} />
+                                        )}
                                     </>
                                 )}
                             </ResourceView>

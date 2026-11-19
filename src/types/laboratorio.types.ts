@@ -15,7 +15,7 @@ export interface RangoLaboratorio {
 }
 
 export interface FiltroLaboratorio extends RangoLaboratorio {
-    estado: EstadoLaboratorio | 'todas';
+    estado: EstadoLaboratorio | 'todas' | 'sin_completar';
     page: number;
 }
 

@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { expect, it, vi } from 'vitest';
 
 import { fechaHospital, instanteHospital, lunesDe, sumarDias } from '@/lib/fechas-hospital';
@@ -149,4 +149,50 @@ it('registra un turno nocturno, muestra ambas partes y rechaza otro turno que se
 
     expect(await siguiente.findByRole('alert')).toHaveTextContent('Solapamiento de turnos');
     expect(siguiente.getByLabelText('Hora de inicio')).toHaveValue('6:00 AM');
+}, 10_000);
+
+it('edita un turno, conserva los datos al detectar un solapamiento y confirma la eliminación', async () => {
+    const fecha = sumarDias(lunesDe(fechaHospital()), 21);
+    const turno = {
+        fecha, personal_id: 'demo-6', area: 'Emergencia',
+        hora_inicio: '08:00', hora_fin: '10:00', tipo_turno: 'manana',
+    } as const;
+    await turnosService.crearTurno(turno);
+    await turnosService.crearTurno({ ...turno, hora_inicio: '11:00', hora_fin: '13:00' });
+    const registrados = await turnosService.listarTurnos(fecha, sumarDias(fecha, 1));
+    const turnoEditable = registrados.find((t) => t.hora_inicio === '08:00')!;
+    let eliminado = false;
+    try {
+        render(<TurnosPage />);
+        for (let i = 0; i < 3; i += 1) fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
+        fireEvent.click(await screen.findByRole('button', { name: /Editar turno de Fernando.*8:00 AM/ }));
+        const formulario = within(screen.getByRole('dialog', { name: 'Editar turno' }));
+        expect(formulario.getByLabelText('Fecha de inicio')).toHaveValue(fecha);
+        expect(formulario.getByLabelText('Área')).toHaveValue('Emergencia');
+        expect(formulario.getByLabelText('Hora de inicio')).toHaveValue('8:00 AM');
+        const fin = formulario.getByLabelText('Hora de fin');
+        fireEvent.change(fin, { target: { value: '12:00 PM' } });
+        fireEvent.click(formulario.getByRole('button', { name: 'Guardar turno' }));
+        expect(await formulario.findByRole('alert')).toHaveTextContent('Solapamiento de turnos');
+        expect(fin).toHaveValue('12:00 PM');
+
+        fireEvent.change(fin, { target: { value: '11:00 AM' } });
+        fireEvent.click(formulario.getByRole('button', { name: 'Guardar turno' }));
+        expect(await screen.findByText('Turno actualizado')).toBeInTheDocument();
+        expect((await screen.findByText('8:00 AM')).parentElement).toHaveTextContent('8:00 AM – 11:00 AM');
+
+        const eliminar = screen.getByRole('button', { name: /Eliminar turno de Fernando.*8:00 AM/ });
+        fireEvent.click(eliminar);
+        fireEvent.click(within(screen.getByRole('dialog', { name: 'Eliminar turno' })).getByRole('button', { name: 'Cancelar' }));
+        expect(eliminar).toBeInTheDocument();
+
+        fireEvent.click(eliminar);
+        fireEvent.click(within(screen.getByRole('dialog', { name: 'Eliminar turno' })).getByRole('button', { name: 'Eliminar turno' }));
+        expect(await screen.findByText('Turno eliminado')).toBeInTheDocument();
+        eliminado = true;
+        await waitFor(() => expect(screen.queryByText('8:00 AM')).not.toBeInTheDocument());
+        expect(await screen.findByText('1:00 PM')).toBeInTheDocument();
+    } finally {
+        await Promise.all(registrados.filter((t) => !eliminado || t.id !== turnoEditable.id).map((t) => turnosService.eliminarTurno(t.id)));
+    }
 }, 10_000);
