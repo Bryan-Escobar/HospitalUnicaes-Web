@@ -1,13 +1,13 @@
 import { useContext, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 import { LiveIndicator } from '@/components/layout/LiveIndicator';
 import { Avatar } from '@/components/ui/avatar';
 import { SearchInput } from '@/components/ui/input';
 import { AuthContext } from '@/context/AuthContext';
 import { isDemoMode } from '@/lib/client';
-import { perfilActual } from '@/services/admin.service';
 import { useDemoStore, type DemoMode } from '@/store/useDemoStore';
+import { ROL_ETIQUETA } from '@/types/auth.types';
 
 const showStatePreview = import.meta.env.DEV || isDemoMode;
 
@@ -34,11 +34,10 @@ function DemoStatePicker() {
 
 export function Topbar() {
     const navigate = useNavigate();
-    const { acceso } = useContext(AuthContext);
+    const { acceso, session } = useContext(AuthContext);
     const [q, setQ] = useState('');
-    // Nombre del perfil de la sesión (GET /auth/me); el cargo aún viene de los datos de ejemplo
     const perfil = acceso?.estado === 'permitido' ? acceso.perfil : null;
-    const nombre = perfil ? `${perfil.nombres} ${perfil.apellidos}`.trim() : perfilActual.nombre;
+    const nombre = `${perfil?.nombres ?? ''} ${perfil?.apellidos ?? ''}`.trim() || perfil?.email || session?.user.email || 'Mi perfil';
 
     return (
         <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center gap-4 border-b border-border bg-card px-7">
@@ -60,17 +59,13 @@ export function Topbar() {
             <div className="ml-auto flex shrink-0 items-center gap-4">
                 {showStatePreview && <DemoStatePicker />}
                 <LiveIndicator />
-                <div className="flex items-center gap-3">
-                    <Avatar name={nombre} />
-                    <div className="leading-tight whitespace-nowrap">
-                        <p className="text-sm font-semibold">{nombre}</p>
-                        {/* A 1280 px solo cabe el rol; el cargo completo se muestra en pantallas anchas */}
-                        <p className="text-xs text-muted-foreground">
-                            <span className="2xl:hidden">Administrador</span>
-                            <span className="hidden 2xl:inline">{perfilActual.cargo}</span>
-                        </p>
+                <Link to="/perfil" className="flex min-w-0 items-center gap-3 rounded-md">
+                    <Avatar name={nombre} src={perfil?.avatar_url ?? undefined} />
+                    <div className="min-w-0 leading-tight">
+                        <p className="max-w-40 truncate text-sm font-semibold 2xl:max-w-72">{nombre}</p>
+                        {perfil && <p className="text-xs text-muted-foreground">{ROL_ETIQUETA[perfil.rol]}</p>}
                     </div>
-                </div>
+                </Link>
             </div>
         </header>
     );

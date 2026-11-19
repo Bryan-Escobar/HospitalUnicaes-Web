@@ -9,6 +9,7 @@ import { queryClient } from './lib/query-client'
 
 // Aplica el tema guardado antes del primer render para evitar parpadeo
 aplicarTema()
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => aplicarTema())
 
 //capa inicial de la app
 createRoot(document.getElementById('root')!).render(

@@ -3,17 +3,9 @@
 // (5 VIP + 6 semiprivadas = 17 camas, 1 ambulancia, estados exactos).
 import type {
     Paciente,
+    Reportes,
     PerfilAdmin,
 } from '@/types/admin.types';
-
-export const perfil: PerfilAdmin = {
-    nombre: 'Rosa Guzmán',
-    cargo: 'Administrador · Jefe de Operaciones',
-    correo: 'rosa.guzman@hospital.edu',
-    telefono: '7000-0001',
-    passwordCambiada: 'cambiada hace 2 meses',
-    sesionesActivas: 1,
-};
 
 const NOMBRES = ['Daniel', 'Gabriela', 'Fernando', 'Patricia', 'Ricardo', 'Valeria', 'Andrés', 'Claudia', 'Emilio', 'Natalia', 'Héctor', 'Silvia', 'Mauricio', 'Beatriz', 'Rodrigo', 'Lorena', 'Samuel', 'Irene', 'Julio', 'Diana', 'Ernesto', 'Mónica', 'Kevin', 'Paola'];
 const APELLIDOS = ['Castro', 'Aguilar', 'Hernández', 'Martínez', 'Portillo', 'Rivera', 'Orellana', 'Flores', 'Menjívar', 'Alvarado', 'Guevara', 'Romero', 'Campos', 'Escobar', 'Mejía', 'Quintanilla'];

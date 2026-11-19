@@ -59,6 +59,22 @@ describe('Dashboard', () => {
         expect(screen.getByRole('link', { name: /Vencen en 16 a 30 días/ })).toHaveTextContent('0');
     });
 
+    it('respeta las preferencias de alertas del dashboard', async () => {
+        localStorage.setItem('hu-alertas-panel:', JSON.stringify({ ambulancia: false, stock: false }));
+        servicio.obtenerResumenDashboard.mockResolvedValue({
+            ...resumen,
+            ambulancia: { estado: 'en_servicio', solicitud_activa_id: 'solicitud-1' },
+        });
+        try {
+            renderDashboard();
+            expect(await screen.findByRole('link', { name: /Lotes vencidos/ })).toBeInTheDocument();
+            expect(screen.queryByRole('link', { name: /Ítems bajo el stock mínimo/ })).not.toBeInTheDocument();
+            expect(screen.queryByRole('link', { name: 'Solicitud activa' })).not.toBeInTheDocument();
+        } finally {
+            localStorage.removeItem('hu-alertas-panel:');
+        }
+    });
+
     it('avisa cuando la API falla', async () => {
         servicio.obtenerResumenDashboard.mockRejectedValue(new Error('caída'));
         renderDashboard();
