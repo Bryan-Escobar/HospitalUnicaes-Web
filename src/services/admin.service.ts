@@ -3,7 +3,6 @@
 // sin tocar las pantallas.
 import { useDemoStore } from '@/store/useDemoStore';
 import type {
-    PerfilAdmin,
     Reportes,
 } from '@/types/admin.types';
 import * as db from './mock-data';
@@ -32,9 +31,3 @@ export function obtenerReportes(): Promise<Reportes> {
         citasPorDoctor: [],
     });
 }
-
-export function obtenerPerfil(): Promise<PerfilAdmin> {
-    return responder(db.perfil, db.perfil);
-}
-
-export const perfilActual = db.perfil;

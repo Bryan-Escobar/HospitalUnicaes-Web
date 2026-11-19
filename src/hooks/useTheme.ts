@@ -29,11 +29,6 @@ export function useTheme() {
             // sin almacenamiento: el tema dura hasta recargar
         }
         aplicarTema(tema);
-        if (tema !== 'sistema') return;
-        const mq = window.matchMedia('(prefers-color-scheme: dark)');
-        const onChange = () => aplicarTema('sistema');
-        mq.addEventListener('change', onChange);
-        return () => mq.removeEventListener('change', onChange);
     }, [tema]);
 
     return [tema, setTema] as const;

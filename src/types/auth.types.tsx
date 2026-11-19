@@ -13,8 +13,7 @@ export const ROL_ETIQUETA: Record<Rol, string> = {
     paciente: 'Paciente',
 };
 
-// Respuesta de GET /api/auth/me (MeSchema en HospitalUnicaes-Api).
-export interface Me {
+export interface Perfil {
     id: string;
     email: string | null;
     nombres: string;
@@ -24,10 +23,14 @@ export interface Me {
     rol: Rol;
     activo: boolean;
     created_at: string;
+}
+
+// Respuesta de GET /api/auth/me (MeSchema en HospitalUnicaes-Api).
+export interface Me extends Perfil {
     paciente_id: string | null;
     personal: {
         id: string;
-        tipo: string;
+        tipo: { id: string; nombre: string };
         especialidad: string | null;
         codigo_empleado: string;
     } | null;
